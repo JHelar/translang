@@ -1,12 +1,11 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 	"translang/figma"
 	"translang/openai"
+	"translang/server"
 )
 
 func getTokens() (string, string) {
@@ -56,22 +55,24 @@ func Process(figmaUrl string, figmaClient *figma.FigmaClient, openaiClient *open
 }
 
 func main() {
-	figmaPAT, openaiAPIKey := getTokens()
-	figmaClient := figma.Client(figmaPAT)
-	openaiClient := openai.Client(openaiAPIKey)
+	// figmaPAT, openaiAPIKey := getTokens()
+	// figmaClient := figma.Client(figmaPAT)
+	// openaiClient := openai.Client(openaiAPIKey)
 
-	if len(os.Args) < 2 {
-		log.Fatalf("Missing figmaUrl")
-	}
+	// if len(os.Args) < 2 {
+	// 	log.Fatalf("Missing figmaUrl")
+	// }
 
-	figmaUrl := os.Args[1]
+	// figmaUrl := os.Args[1]
 
-	result := Process(figmaUrl, &figmaClient, &openaiClient)
+	// result := Process(figmaUrl, &figmaClient, &openaiClient)
 
-	resultJSON, err := json.Marshal(result)
-	if err != nil {
-		log.Fatal("Failed to stringify", err)
-	}
+	// resultJSON, err := json.Marshal(result)
+	// if err != nil {
+	// 	log.Fatal("Failed to stringify", err)
+	// }
 
-	fmt.Print(string(resultJSON))
+	// fmt.Print(string(resultJSON))
+
+	server.ListenAndServe()
 }
