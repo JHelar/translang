@@ -15,7 +15,7 @@ type OpenaiClient struct {
 	translatorParam openai.ChatCompletionNewParams
 }
 
-type Translations struct {
+type Translation struct {
 	Source  string `json:"source" jsonschema_description:"The source text that the translations came from"`
 	English string `json:"english" jsonschema_description:"The english translation"`
 	Swedish string `json:"swedish" jsonschema_description:"The swedish translation"`
@@ -23,8 +23,8 @@ type Translations struct {
 	CopyKey string `json:"copyKey" jsonschema_description:"A suggested copy key to be used as a reference to the translations"`
 }
 
-func (translations Translations) String() string {
-	return fmt.Sprintf("Key: %v\nSource: %v\nEN: %v\nSV: %v\nFI: %v", translations.CopyKey, translations.Source, translations.English, translations.Swedish, translations.Finnish)
+func (translation Translation) String() string {
+	return fmt.Sprintf("Key: %v\nSource: %v\nEN: %v\nSV: %v\nFI: %v", translation.CopyKey, translation.Source, translation.English, translation.Swedish, translation.Finnish)
 }
 
 func GenerateScehma[T any]() interface{} {
@@ -37,7 +37,7 @@ func GenerateScehma[T any]() interface{} {
 	return schema
 }
 
-var TranslationsResponseSchema = GenerateScehma[Translations]()
+var TranslationsResponseSchema = GenerateScehma[Translation]()
 
 func Client(openaiAPIKey string) OpenaiClient {
 	schemaParam := openai.ResponseFormatJSONSchemaJSONSchemaParam{
@@ -78,7 +78,7 @@ const TRANSLATION_SYSTEM_PROMPT = `
 	From now on any text that I give you, you will only respond with the translation and copy key of that text nothing more nothing less.
 `
 
-func (client *OpenaiClient) Translate(text string) Translations {
+func (client *OpenaiClient) Translate(text string) Translation {
 	client.translatorParam.Messages = append(client.translatorParam.Messages, openai.UserMessage(text))
 
 	chat, _ := client.Chat.Completions.New(
@@ -88,8 +88,8 @@ func (client *OpenaiClient) Translate(text string) Translations {
 
 	client.translatorParam.Messages = client.translatorParam.Messages[:1]
 
-	var translations Translations
-	_ = json.Unmarshal([]byte(chat.Choices[0].Message.Content), &translations)
+	var translation Translation
+	_ = json.Unmarshal([]byte(chat.Choices[0].Message.Content), &translation)
 
-	return translations
+	return translation
 }

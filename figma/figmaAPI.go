@@ -21,7 +21,7 @@ type FigmaUrl struct {
 	FileKey  string
 	FileName string
 	Query    url.Values
-	rawUrl   url.URL
+	RawUrl   string
 }
 
 type FigmaNode struct {
@@ -124,7 +124,7 @@ func parseFigmaFileUrl(figmaFileUrl string) FigmaUrl {
 		FileKey:  pathParts[2],
 		FileName: pathParts[3],
 		Query:    url.Query(),
-		rawUrl:   *url,
+		RawUrl:   figmaFileUrl,
 	}
 }
 

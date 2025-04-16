@@ -18,3 +18,18 @@ $env:OPENAI_API_KEY='VALUE'
 
 ### Tech
 - Golang, because I want to
+
+### Debug GCC issue
+https://github.com/golang/go/issues/59490#issuecomment-1581874198
+```
+that happen because you installed gcc through cygwin64
+so, try to install MinGW.
+download it from this link https://github.com/niXman/mingw-builds-binaries/releases
+make sure to choose a compatible version if you have Windows 64 choose mingw64 and so
+then extract it into Windows partition in my case was C:\ partition
+then change the gcc path in environment variables in my case the path after the update was "C:\mingw64\bin"
+then restart vs code if it opens then try the command again.
+
+if it needs to CG_ENABELED=1
+then open powershell as admin and write this command "go env -w CGO_ENABLED=1"
+```
