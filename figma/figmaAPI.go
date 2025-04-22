@@ -128,12 +128,12 @@ func parseFigmaFileUrl(figmaFileUrl string) FigmaUrl {
 	}
 }
 
-func (client *FigmaClient) GetFileNodes(figmaFileUrl string) FigmaNode {
+func (client *FigmaClient) GetFileNodes(figmaFileUrl string) (FigmaNode, error) {
 	url := parseFigmaFileUrl(figmaFileUrl)
 
 	nodeId := strings.ReplaceAll(url.Query.Get("node-id"), "-", ":")
 	if nodeId == "" {
-		log.Fatal("Missing node id")
+		return FigmaNode{}, fmt.Errorf("missing node id")
 	}
 
 	path := fmt.Sprintf("/v1/files/%v/nodes?ids=%v&depth=5", url.FileKey, nodeId)
@@ -141,28 +141,28 @@ func (client *FigmaClient) GetFileNodes(figmaFileUrl string) FigmaNode {
 	request := client.request(path)
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {
-		log.Fatalf("Failed to get file nodes: '%v' %v", path, err)
+		return FigmaNode{}, fmt.Errorf("failed to get file nodes: '%v' %v", path, err)
 	}
 	defer response.Body.Close()
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		log.Fatalf("Failed to read filed nodes response: '%v' %v", path, err)
+		return FigmaNode{}, fmt.Errorf("failed to read filed nodes response: '%v' %v", path, err)
 	}
 
 	fileResponse := FigmaNodeFile{}
 	if err = json.Unmarshal(body, &fileResponse); err != nil {
-		log.Fatalf("Failed to parse file nodes response: %v", err)
+		return FigmaNode{}, fmt.Errorf("failed to parse file nodes response: %v", err)
 	}
 
-	return fileResponse.Nodes[nodeId].Document
+	return fileResponse.Nodes[nodeId].Document, nil
 }
 
-func (client *FigmaClient) GetImage(figmaFileUrl string) string {
+func (client *FigmaClient) GetImage(figmaFileUrl string) (string, error) {
 	url := parseFigmaFileUrl(figmaFileUrl)
 	nodeId := strings.ReplaceAll(url.Query.Get("node-id"), "-", ":")
 	if nodeId == "" {
-		log.Fatal("Missing node id")
+		return "", fmt.Errorf("missing node id")
 	}
 
 	path := fmt.Sprintf("/v1/images/%v?ids=%v", url.FileKey, nodeId)
@@ -170,19 +170,19 @@ func (client *FigmaClient) GetImage(figmaFileUrl string) string {
 	request := client.request(path)
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {
-		log.Fatalf("Failed to get image: '%v' %v", path, err)
+		return "", fmt.Errorf("failed to get image: '%v' %v", path, err)
 	}
 	defer response.Body.Close()
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		log.Fatalf("Failed to parse image response: '%v' %v", path, err)
+		return "", fmt.Errorf("failed to parse image response: '%v' %v", path, err)
 	}
 
 	fileImageResponse := FigmaImageResponse{}
 	if err = json.Unmarshal(body, &fileImageResponse); err != nil {
-		log.Fatalf("Failed to parse image response: %v", err)
+		return "", fmt.Errorf("failed to parse image response: %v", err)
 	}
 
-	return fileImageResponse.Images[nodeId]
+	return fileImageResponse.Images[nodeId], nil
 }

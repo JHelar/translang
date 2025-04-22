@@ -3,9 +3,8 @@ package main
 import (
 	"log"
 	"os"
-	"translang/figma"
-	"translang/openai"
 	"translang/server"
+	"translang/translator"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -24,48 +23,8 @@ func getTokens() (string, string) {
 	return figmaPAT, openaiAPIKey
 }
 
-type TranslationResult struct {
-	NodeId      string             `json:"nodeId"`
-	Translation openai.Translation `json:"translation"`
-}
-
-type ProcessResult struct {
-	ContextImageUrl string              `json:"contextImageUrl"`
-	Translations    []TranslationResult `json:"translations"`
-}
-
-func Process(figmaUrl string, figmaClient *figma.FigmaClient, openaiClient *openai.OpenaiClient) ProcessResult {
-	imageUrlChan := make(chan string)
-	translationsChan := make(chan []TranslationResult)
-
-	go func(figmaUrl string) {
-		imageUrlChan <- figmaClient.GetImage(figmaUrl)
-	}(figmaUrl)
-
-	go func(figmaUrl string) {
-		node := figmaClient.GetFileNodes(figmaUrl)
-		textNodes := node.FindAllNodesOfType("TEXT")
-
-		var translations []TranslationResult
-		for _, textNode := range textNodes {
-			translation := openaiClient.Translate(textNode.Characters)
-			translations = append(translations, TranslationResult{
-				NodeId:      textNode.ID,
-				Translation: translation,
-			})
-		}
-
-		translationsChan <- translations
-	}(figmaUrl)
-
-	return ProcessResult{
-		ContextImageUrl: <-imageUrlChan,
-		Translations:    <-translationsChan,
-	}
-}
-
 func main() {
-	// figmaPAT, openaiAPIKey := getTokens()
+	figmaPAT, openaiAPIKey := getTokens()
 	// figmaClient := figma.Client(figmaPAT)
 	// openaiClient := openai.Client(openaiAPIKey)
 
@@ -100,6 +59,8 @@ func main() {
 	// 	log.Printf("%q: %s\n", err, sqlStmt)
 	// 	return
 	// }
+	translator := translator.Client(figmaPAT, openaiAPIKey)
+	serverClient := server.Client(translator)
 
-	server.ListenAndServe()
+	serverClient.ListenAndServe()
 }

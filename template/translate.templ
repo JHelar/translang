@@ -1,0 +1,36 @@
+package template
+
+import "translang/translator"
+
+type TranslateProps struct {
+	translator.ProcessResult
+}
+
+templ Translate(props TranslateProps) {
+	@Base(BaseProps{
+		Title: "Translang - Translation",
+	}) {
+		<div class="card card-side bg-base-100 shadow-sm">
+			<figure>
+				<img
+					src={ props.ContextImageUrl }
+					alt="Translation context"
+				/>
+			</figure>
+			<div class="card-body">
+				<ul class="list bg-base-100 rounded-box shadow-md">
+					for _, translation := range props.Translations {
+						<li class="list-row">
+							<div>
+								<div>{ translation.Translation.CopyKey }</div>
+								<div class="text-xs uppercase font-semibold opacity-60">{ translation.Translation.English }</div>
+								<div class="text-xs uppercase font-semibold opacity-60">{ translation.Translation.Swedish }</div>
+								<div class="text-xs uppercase font-semibold opacity-60">{ translation.Translation.Finnish }</div>
+							</div>
+						</li>
+					}
+				</ul>
+			</div>
+		</div>
+	}
+}
