@@ -1,36 +1,17 @@
 package template
 
-import "translang/translator"
-
-type TranslateProps struct {
-	translator.ProcessResult
-}
-
-templ Translate(props TranslateProps) {
+templ Translate() {
 	@Base(BaseProps{
 		Title: "Translang - Translation",
 	}) {
-		<div class="card card-side bg-base-100 shadow-sm">
-			<figure>
-				<img
-					src={ props.ContextImageUrl }
-					alt="Translation context"
-				/>
-			</figure>
-			<div class="card-body">
-				<ul class="list bg-base-100 rounded-box shadow-md">
-					for _, translation := range props.Translations {
-						<li class="list-row">
-							<div>
-								<div>{ translation.Translation.CopyKey }</div>
-								<div class="text-xs uppercase font-semibold opacity-60">{ translation.Translation.English }</div>
-								<div class="text-xs uppercase font-semibold opacity-60">{ translation.Translation.Swedish }</div>
-								<div class="text-xs uppercase font-semibold opacity-60">{ translation.Translation.Finnish }</div>
-							</div>
-						</li>
-					}
-				</ul>
-			</div>
-		</div>
+		<form hx-post="/translation" hx-swap="none">
+			<fieldset class="fieldset bg-base-200 border-base-300 rounded-box w-xs border p-4">
+				<legend class="fieldset-legend">Translation</legend>
+				<label class="label" for="figmaUrl">Figma url</label>
+				<input type="url" class="input" id="figmaUrl" name="figmaUrl" placeholder="Url to a figma section"/>
+				<button class="btn btn-neutral mt-4" type="submit">Translate</button>
+			</fieldset>
+		</form>
+		<div id="translation"></div>
 	}
 }

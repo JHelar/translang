@@ -12,47 +12,52 @@ type ProcessResult struct {
 	Translations    []TranslationResult `json:"translations"`
 }
 
+func (client TranslatorClient) ProcessContextImage(figmaUrl string, imageUrlChan chan<- string, errorChan chan<- error) {
+	imageUrl, err := client.figmaClient.GetImage(figmaUrl)
+	if err != nil {
+		errorChan <- err
+	} else {
+		imageUrlChan <- imageUrl
+	}
+}
+
+func (client TranslatorClient) ProcessTextTranslations(figmaUrl string, translationResult chan<- TranslationResult, errorChan chan<- error) {
+	node, err := client.figmaClient.GetFileNodes(figmaUrl)
+	if err != nil {
+		errorChan <- err
+		return
+	}
+
+	textNodes := node.FindAllNodesOfType("TEXT")
+
+	for _, textNode := range textNodes {
+		translation := client.openaiClient.Translate(textNode.Characters)
+		translationResult <- TranslationResult{
+			NodeId:      textNode.ID,
+			Translation: translation,
+		}
+	}
+	close(translationResult)
+}
+
 func (client TranslatorClient) Process(figmaUrl string) (ProcessResult, error) {
 	imageUrlChan := make(chan string)
-	translationsChan := make(chan []TranslationResult)
+	translationChan := make(chan TranslationResult)
 	errorChan := make(chan error)
 
-	go func(figmaUrl string) {
-		imageUrl, err := client.figmaClient.GetImage(figmaUrl)
-		if err != nil {
-			errorChan <- err
-		} else {
-			imageUrlChan <- imageUrl
-		}
-	}(figmaUrl)
-
-	go func(figmaUrl string) {
-		node, err := client.figmaClient.GetFileNodes(figmaUrl)
-		if err != nil {
-			errorChan <- err
-			return
-		}
-
-		textNodes := node.FindAllNodesOfType("TEXT")
-
-		var translations []TranslationResult
-		for _, textNode := range textNodes {
-			translation := client.openaiClient.Translate(textNode.Characters)
-			translations = append(translations, TranslationResult{
-				NodeId:      textNode.ID,
-				Translation: translation,
-			})
-		}
-
-		translationsChan <- translations
-	}(figmaUrl)
+	go client.ProcessContextImage(figmaUrl, imageUrlChan, errorChan)
+	go client.ProcessTextTranslations(figmaUrl, translationChan, errorChan)
 
 	var contextImageUrl string
 	var translations []TranslationResult
 
-	for range 2 {
+	moreTranslations := true
+	for moreTranslations {
 		select {
-		case translations = <-translationsChan:
+		case translation, moreTranslations := <-translationChan:
+			if moreTranslations {
+				translations = append(translations, translation)
+			}
 		case contextImageUrl = <-imageUrlChan:
 		case err := <-errorChan:
 			return ProcessResult{}, err

@@ -1,17 +1,19 @@
 package template
 
 type BaseProps struct {
-    Title string
+	Title string
 }
 
 templ Base(props BaseProps) {
-    <html>
-        <head>
-            <title>{ props.Title }</title>
-            <link href="/public/output.css" rel="stylesheet"/>
-        </head>
-        <body>
-            { children... }
-        </body>
-    </html>
+	<html>
+		<head>
+			<title>{ props.Title }</title>
+			<link href="/public/output.css" rel="stylesheet"/>
+			<script src="https://unpkg.com/htmx.org@2.0.4" crossorigin="anonymous"></script>
+			<script src="https://unpkg.com/htmx-ext-sse@2.2.2" crossorigin="anonymous"></script>
+		</head>
+		<body>
+			{ children... }
+		</body>
+	</html>
 }

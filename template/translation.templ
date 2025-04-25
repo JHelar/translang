@@ -1,0 +1,37 @@
+package template
+
+import "translang/translator"
+
+templ TranslationBase(connectionString string) {
+	<div hx-swap-oob="innerHTML:#translation">
+		<div class="card card-side bg-base-100 shadow-sm" hx-ext="sse" sse-connect={ connectionString }>
+			<figure>
+				<img
+					sse-swap="contextImage"
+					hx-swap="outerHTML"
+				/>
+			</figure>
+			<div class="card-body">
+				<ul class="list bg-base-100 rounded-box shadow-md" id="translations" hx-swap="afterbegin" sse-swap="translation"></ul>
+			</div>
+		</div>
+	</div>
+}
+
+templ TranslationContextImage(imageUrl string) {
+	<img
+		src={ imageUrl }
+		class="object-contain"
+	/>
+}
+
+templ TranslationNode(translation translator.TranslationResult) {
+	<li class="list-row">
+		<div>
+			<div>{ translation.Translation.CopyKey }</div>
+			<div class="text-xs uppercase font-semibold opacity-60">{ translation.Translation.English }</div>
+			<div class="text-xs uppercase font-semibold opacity-60">{ translation.Translation.Swedish }</div>
+			<div class="text-xs uppercase font-semibold opacity-60">{ translation.Translation.Finnish }</div>
+		</div>
+	</li>
+}

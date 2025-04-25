@@ -21,6 +21,8 @@ func (client ServerClient) ListenAndServe() {
 	http.Handle("/public/", http.StripPrefix("/public/", fs))
 	http.HandleFunc("/", client.HomeRoute)
 	http.HandleFunc("/translate", client.TranslateRoute)
+	http.HandleFunc("/translation", client.TranslationRoute)
+	http.HandleFunc("/translation/stream", client.TranslationStream)
 
 	fmt.Println("Listening on :3000")
 	http.ListenAndServe("0.0.0.0:3000", nil)
