@@ -11,8 +11,8 @@ type TranslatorClient struct {
 }
 
 func Client(figmaPAT string, openaiAPIKey string) TranslatorClient {
-	figmaClient := figma.Client(figmaPAT)
-	openaiClient := openai.Client(openaiAPIKey)
+	figmaClient := figma.NewClient(figmaPAT)
+	openaiClient := openai.NewClient(openaiAPIKey)
 
 	return TranslatorClient{
 		figmaClient:  figmaClient,

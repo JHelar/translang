@@ -60,7 +60,7 @@ func main() {
 	// 	return
 	// }
 	translator := translator.Client(figmaPAT, openaiAPIKey)
-	serverClient := server.Client(translator)
+	serverClient := server.NewClient(translator)
 
 	serverClient.ListenAndServe()
 }

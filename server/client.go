@@ -10,7 +10,7 @@ type ServerClient struct {
 	translator translator.TranslatorClient
 }
 
-func Client(translator translator.TranslatorClient) ServerClient {
+func NewClient(translator translator.TranslatorClient) ServerClient {
 	return ServerClient{
 		translator: translator,
 	}

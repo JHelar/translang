@@ -39,7 +39,7 @@ func GenerateScehma[T any]() interface{} {
 
 var TranslationsResponseSchema = GenerateScehma[Translation]()
 
-func Client(openaiAPIKey string) OpenaiClient {
+func NewClient(openaiAPIKey string) OpenaiClient {
 	schemaParam := openai.ResponseFormatJSONSchemaJSONSchemaParam{
 		Name:        "translations",
 		Description: openai.String("The languages that will be translated into"),

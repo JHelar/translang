@@ -33,3 +33,13 @@ then restart vs code if it opens then try the command again.
 if it needs to CG_ENABELED=1
 then open powershell as admin and write this command "go env -w CGO_ENABLED=1"
 ```
+
+### DB Structure
+
+translation -> id, figmaSourceUrl, contextImageUrl, createdAt, syncedAt => primary key id
+translationNode -> tranlsation_id, figmaTextNodeID => derived key translation_id, figmaTextNodeID
+translationNodeValue -> copy_key, translation_node_id, language, text, createdAt, syncedAt => primary key copy_key unique
+
+#### Simpler db handling lib
+For easier handling of struct parsing
+https://github.com/jmoiron/sqlx

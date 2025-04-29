@@ -89,7 +89,7 @@ func (rootNode *FigmaNode) FindAllNodesOfType(nodeType string) []FigmaNodePath {
 	return targetNodes
 }
 
-func Client(figmaPAT string) FigmaClient {
+func NewClient(figmaPAT string) FigmaClient {
 	return FigmaClient{
 		token: figmaPAT,
 	}
