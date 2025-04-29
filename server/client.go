@@ -3,16 +3,19 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"translang/db"
 	"translang/translator"
 )
 
 type ServerClient struct {
 	translator translator.TranslatorClient
+	db         db.DBClient
 }
 
-func NewClient(translator translator.TranslatorClient) ServerClient {
+func NewClient(translator translator.TranslatorClient, db db.DBClient) ServerClient {
 	return ServerClient{
 		translator: translator,
+		db:         db,
 	}
 }
 

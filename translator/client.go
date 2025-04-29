@@ -10,7 +10,7 @@ type TranslatorClient struct {
 	openaiClient openai.OpenaiClient
 }
 
-func Client(figmaPAT string, openaiAPIKey string) TranslatorClient {
+func NewClient(figmaPAT string, openaiAPIKey string) TranslatorClient {
 	figmaClient := figma.NewClient(figmaPAT)
 	openaiClient := openai.NewClient(openaiAPIKey)
 

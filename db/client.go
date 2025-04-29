@@ -1,25 +1,33 @@
 package db
 
 import (
-	"database/sql"
 	"log"
+	"os"
 
+	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 )
 
 const DATABASE_NAME = "translang.db"
 
 type DBClient struct {
-	db *sql.DB
+	DB *sqlx.DB
 }
 
 func NewClient() DBClient {
-	db, err := sql.Open("sqlite3", DATABASE_NAME)
+	db, err := sqlx.Open("sqlite3", DATABASE_NAME)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	schema, err := os.ReadFile("./db/schema.sql")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	db.MustExec(string(schema))
+
 	return DBClient{
-		db: db,
+		DB: db,
 	}
 }
