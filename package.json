@@ -1,6 +1,11 @@
 {
   "scripts": {
-    "generate:css": "npx @tailwindcss/cli -i app.css -o public/output.css"
+    "generate:css": "npx @tailwindcss/cli -i app.css -o public/output.css",
+    "watch:css": "npm run generate:css -- --watch",
+    "watch:app": "air",
+    "generate:template": "templ generate",
+    "watch:template": "npm run generate:template -- -watch",
+    "watch": "watch:app & watch:css & watch:template"
   },
   "dependencies": {
     "@tailwindcss/cli": "^4.1.4",

@@ -1,12 +1,16 @@
 package template
 
 import "translang/translator"
+import "fmt"
+
+import "encoding/base64"
 
 templ TranslationBase(connectionString string) {
 	<div hx-swap-oob="innerHTML:#translation">
 		<div class="card card-side bg-base-100 shadow-sm" hx-ext="sse" sse-connect={ connectionString }>
 			<figure>
 				<img
+					class="skeleton h-32 w-32"
 					sse-swap="contextImage"
 					hx-swap="outerHTML"
 				/>
@@ -25,13 +29,21 @@ templ TranslationContextImage(imageUrl string) {
 	/>
 }
 
+func encodeNodeID(nodeID string) string {
+	return base64.StdEncoding.EncodeToString([]byte(nodeID))
+}
+
+func nodeOOBTarget(nodeID string) string {
+	return fmt.Sprintf("#%s", encodeNodeID(nodeID))
+}
+
 templ TranslationNode(translation translator.TranslationResult) {
-	<li class="list-row">
+	<li class="list-row" id={ encodeNodeID(translation.NodeId) }>
 		<div>
-			<div>{ translation.Translation.CopyKey }</div>
-			<div class="text-xs uppercase font-semibold opacity-60">{ translation.Translation.English }</div>
-			<div class="text-xs uppercase font-semibold opacity-60">{ translation.Translation.Swedish }</div>
-			<div class="text-xs uppercase font-semibold opacity-60">{ translation.Translation.Finnish }</div>
+			<div>{ translation.CopyKey }</div>
+			for _, value := range translation.Values {
+				<div class="text-xs uppercase font-semibold opacity-60">{ value.Text }</div>
+			}
 		</div>
 	</li>
 }

@@ -1,10 +1,15 @@
 package translator
 
-import "translang/openai"
+type TranslationValue struct {
+	Language string `json:"language"`
+	Text     string `json:"text"`
+}
 
 type TranslationResult struct {
-	NodeId      string             `json:"nodeId"`
-	Translation openai.Translation `json:"translation"`
+	NodeId  string             `json:"nodeId"`
+	Source  string             `json:"source"`
+	CopyKey string             `json:"copuKey"`
+	Values  []TranslationValue `json:"values"`
 }
 
 type ProcessResult struct {
@@ -29,12 +34,26 @@ func (client TranslatorClient) ProcessTextTranslations(figmaUrl string, translat
 	}
 
 	textNodes := node.FindAllNodesOfType("TEXT")
-
 	for _, textNode := range textNodes {
 		translation := client.openaiClient.Translate(textNode.Characters)
 		translationResult <- TranslationResult{
-			NodeId:      textNode.ID,
-			Translation: translation,
+			NodeId:  textNode.ID,
+			Source:  translation.Source,
+			CopyKey: translation.CopyKey,
+			Values: []TranslationValue{
+				{
+					Language: "sv",
+					Text:     translation.Swedish,
+				},
+				{
+					Language: "en",
+					Text:     translation.English,
+				},
+				{
+					Language: "fi",
+					Text:     translation.Finnish,
+				},
+			},
 		}
 	}
 	close(translationResult)

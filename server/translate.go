@@ -23,7 +23,7 @@ func (client ServerClient) TranslationRoute(w http.ResponseWriter, r *http.Reque
 		w.WriteHeader(422)
 		return
 	}
-	translation, err := dto.NewTranslation(figmaUrl, client.db)
+	translation, err := dto.UpsertTranslation(figmaUrl, client.db)
 	if err != nil {
 		fmt.Printf("Error creating translation: %v\n", err)
 		w.WriteHeader(500)
@@ -44,7 +44,7 @@ func (client ServerClient) TranslationStream(w http.ResponseWriter, r *http.Requ
 
 	translation, err := dto.GetTranslationByID(translationID, client.db)
 	if err != nil {
-		fmt.Printf("Error getting translation (%d): %v", translationID, err)
+		fmt.Printf("Error getting translation (%d): %v\n", translationID, err)
 		w.WriteHeader(404)
 		return
 	}
@@ -61,16 +61,55 @@ func (client ServerClient) TranslationStream(w http.ResponseWriter, r *http.Requ
 
 	var stringBuilder strings.Builder
 
-	go client.translator.ProcessContextImage(translation.FigmaSourceUrl, imageUrlChan, errorChan)
-	go client.translator.ProcessTextTranslations(translation.FigmaSourceUrl, translationChan, errorChan)
+	go func() {
+		if translation.ContextImageUrl.Valid {
+			imageUrlChan <- translation.ContextImageUrl.String
+		} else {
+			client.translator.ProcessContextImage(translation.FigmaSourceUrl, imageUrlChan, errorChan)
+		}
+	}()
+
+	go func() {
+		nodes, err := translation.Nodes(client.db)
+		if err != nil {
+			errorChan <- err
+			return
+		}
+		if len(nodes) > 0 {
+			for _, node := range nodes {
+				result, err := node.ToResult(client.db)
+				if err != nil {
+					errorChan <- err
+					return
+				}
+				translationChan <- result
+			}
+			return
+		}
+		client.translator.ProcessTextTranslations(translation.FigmaSourceUrl, translationChan, errorChan)
+	}()
 
 	moreTranslations := true
 	for moreTranslations {
 		select {
-		case translation, moreTranslations := <-translationChan:
+		case translationResult, moreTranslations := <-translationChan:
 			if moreTranslations {
+				go func() {
+					node, err := translation.UpsertNode(translationResult.NodeId, translationResult.Source, translationResult.CopyKey, client.db)
+					if err != nil {
+						errorChan <- err
+						return
+					}
+					for _, value := range translationResult.Values {
+						if _, err = node.UpsertValue(value.Language, value.Text, client.db); err != nil {
+							errorChan <- err
+							return
+						}
+					}
+				}()
+
 				stringBuilder.WriteString("event:translation\ndata:")
-				template.TranslationNode(translation).Render(r.Context(), &stringBuilder)
+				template.TranslationNode(translationResult).Render(r.Context(), &stringBuilder)
 				stringBuilder.WriteString("\n\n")
 
 				w.Write([]byte(stringBuilder.String()))
@@ -78,6 +117,8 @@ func (client ServerClient) TranslationStream(w http.ResponseWriter, r *http.Requ
 				stringBuilder.Reset()
 			}
 		case contextImageUrl := <-imageUrlChan:
+			go translation.UpdateContextImage(contextImageUrl, client.db)
+
 			stringBuilder.WriteString("event:contextImage\ndata:")
 			template.TranslationContextImage(contextImageUrl).Render(r.Context(), &stringBuilder)
 			stringBuilder.WriteString("\n\n")
