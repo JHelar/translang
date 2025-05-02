@@ -5,7 +5,7 @@
     "watch:app": "air",
     "generate:template": "templ generate",
     "watch:template": "npm run generate:template -- -watch",
-    "watch": "watch:app & watch:css & watch:template"
+    "watch": "npm run watch:app & npm run watch:css & npm run watch:template"
   },
   "dependencies": {
     "@tailwindcss/cli": "^4.1.4",

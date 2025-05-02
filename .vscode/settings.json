@@ -1,6 +1,12 @@
 {
     "editor.formatOnSave": true,
+    "files.associations": {
+        "*.css": "tailwindcss"
+    },
     "[templ]": {
         "editor.defaultFormatter": "a-h.templ"
+    },
+    "tailwindCSS.includeLanguages": {
+        "templ": "html"
     }
 }

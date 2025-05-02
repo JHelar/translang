@@ -1,17 +1,119 @@
 package template
 
-templ Translate() {
+import "translang/translator"
+import "fmt"
+import "net/url"
+
+type TranslationModalProps struct {
+	SSEUrl         string
+	FigmaSourceUrl string
+}
+
+templ TranslationModal(props TranslationModalProps) {
+	<dialog id="translation_modal" class="modal" hx-swap-oob="beforebegin:#translate" hx-ext="sse" hx-get="/translate" hx-swap="delete" hx-trigger="close delay:250ms" sse-connect={ props.SSEUrl } sse-close="close" hx-on:htmx:load="this.showModal()">
+		<form method="dialog" class="modal-backdrop">
+			<button>close</button>
+		</form>
+		<div class="modal-box flex flex-col items-center max-w-4xl">
+			<form method="dialog">
+				<button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+			</form>
+			<div
+				class="skeleton h-72 w-96"
+				sse-swap="contextImage"
+				hx-swap="outerHTML"
+			></div>
+			<div id="translations" hx-swap="afterbegin" sse-swap="translation" class="mt-8 gap-y-8 flex flex-col">
+				<div id="translation_skeleton" sse-swap="close" hx-swap="delete">
+					<div class="skeleton h-7 w-full mb-2"></div>
+					<div class="skeleton h-6 w-full mb-4"></div>
+					<div class="overflow-x-auto">
+						<table class="table">
+							<thead>
+								<tr>
+									<th>Language</th>
+									<th>Translation</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr>
+									<th><div class="skeleton w-44 h-11"></div></th>
+									<th><div class="skeleton w-64 h-11"></div></th>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>
+	</dialog>
+}
+
+type TranslateProps struct {
+	Results []translator.ProcessResult
+	Modal   TranslationModalProps
+}
+
+templ TranslationRow(result translator.ProcessResult) {
+	<tr>
+		<td>
+			<div class="max-w-sm">
+				<img
+					src={ result.ContextImageUrl }
+					alt="Figma contextual image"
+					class="object-contain"
+				/>
+			</div>
+		</td>
+		<td>
+			<a href={ templ.URL(result.FigmaSourceUrl) } class="btn btn-link">{ result.FigmaSourceUrl }</a>
+		</td>
+		<td>
+			{ fmt.Sprintf("%d", len(result.Translations)) }
+		</td>
+		<td>
+			<a class="btn btn-soft btn-primary" hx-swap="none" hx-get={ fmt.Sprintf("/translate?figmaUrl=%s", url.QueryEscape(result.FigmaSourceUrl)) } href={ templ.URL(fmt.Sprintf("/translate?figmaUrl=%s", url.QueryEscape(result.FigmaSourceUrl))) }>Details</a>
+			<a class="btn btn-soft btn-error" href={ templ.URL(fmt.Sprintf("/translate?figmaUrl=%s&delete=true", url.QueryEscape(result.FigmaSourceUrl))) }>Delete</a>
+		</td>
+	</tr>
+}
+
+templ Translate(props TranslateProps) {
 	@Base(BaseProps{
 		Title: "Translang - Translation",
 	}) {
-		<form hx-post="/translation" hx-swap="none">
-			<fieldset class="fieldset bg-base-200 border-base-300 rounded-box w-xs border p-4">
-				<legend class="fieldset-legend">Translation</legend>
-				<label class="label" for="figmaUrl">Figma url</label>
-				<input type="url" class="input" id="figmaUrl" name="figmaUrl" placeholder="Url to a figma section"/>
-				<button class="btn btn-neutral mt-4" type="submit">Translate</button>
-			</fieldset>
-		</form>
-		<div id="translation"></div>
+		if props.Modal != (TranslationModalProps{}) {
+			@TranslationModal(props.Modal)
+		}
+		<div id="translate">
+			<div class="card bg-base-100 w-full m-auto max-w-sm shrink-0">
+				<div class="card-body">
+					<form hx-post="/translate" hx-swap="none">
+						<fieldset class="fieldset">
+							<label class="label" for="figmaUrl">Figma url</label>
+							<input type="url" class="input" id="figmaUrl" name="figmaUrl" placeholder="Url to a figma section"/>
+							<button class="btn btn-neutral mt-4" type="submit">Translate</button>
+						</fieldset>
+					</form>
+				</div>
+			</div>
+			<div class="overflow-x-auto bg-base-200">
+				<table class="table">
+					<thead>
+						<tr>
+							<th>Context</th>
+							<th>URL</th>
+							<th>Translations</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						for _, translation := range props.Results {
+							@TranslationRow(translation)
+						}
+					</tbody>
+				</table>
+			</div>
+		</div>
 	}
 }

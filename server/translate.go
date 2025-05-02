@@ -11,31 +11,53 @@ import (
 )
 
 func (client ServerClient) TranslateRoute(w http.ResponseWriter, r *http.Request) {
-
-	template.Translate().Render(r.Context(), w)
-}
-
-func (client ServerClient) TranslationRoute(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
-
-	figmaUrl := r.Form.Get("figmaUrl")
-	if figmaUrl == "" {
-		w.WriteHeader(422)
-		return
-	}
-	translation, err := dto.UpsertTranslation(figmaUrl, client.db)
+	translations, err := dto.GetAllTranslations(client.db)
 	if err != nil {
-		fmt.Printf("Error creating translation: %v\n", err)
+		fmt.Printf("Error retreiving translation: %v\n", err)
 		w.WriteHeader(500)
 		return
 	}
 
-	fmt.Println(translation)
+	results := []translator.ProcessResult{}
+	for _, translation := range translations {
+		result, err := translation.ToResult(client.db)
+		if err != nil {
+			w.WriteHeader(500)
+			return
+		}
+		results = append(results, result)
+	}
 
-	template.TranslationBase(fmt.Sprintf("/translation/stream?id=%d", translation.ID)).Render(r.Context(), w)
+	props := template.TranslateProps{
+		Results: results,
+	}
+
+	r.ParseForm()
+	figmaUrl := r.Form.Get("figmaUrl")
+	if figmaUrl != "" {
+		// if r.Form.Get("delete") == "true" {
+		// 	if err := dto.DeleteTranslation(figmaUrl, client.db); err != nil {
+		// 		fmt.Printf("Error deleting translation: %v\n", err)
+		// 	}
+		// } else {
+
+		// }
+		translation, err := dto.UpsertTranslation(figmaUrl, client.db)
+		if err != nil {
+			fmt.Printf("Error creating translation: %v\n", err)
+		} else {
+			props.Modal = template.TranslationModalProps{
+				SSEUrl:         fmt.Sprintf("/translate/stream?id=%d", translation.ID),
+				FigmaSourceUrl: figmaUrl,
+			}
+		}
+	}
+
+	template.Translate(props).Render(r.Context(), w)
+
 }
 
-func (client ServerClient) TranslationStream(w http.ResponseWriter, r *http.Request) {
+func (client ServerClient) TranslateStreamRoute(w http.ResponseWriter, r *http.Request) {
 	translationID, err := strconv.ParseInt(r.URL.Query().Get("id"), 10, 64)
 	if err != nil {
 		w.WriteHeader(422)

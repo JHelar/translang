@@ -13,6 +13,7 @@ type TranslationResult struct {
 }
 
 type ProcessResult struct {
+	FigmaSourceUrl  string              `json:"figmaSourceUrl"`
 	ContextImageUrl string              `json:"contextImageUrl"`
 	Translations    []TranslationResult `json:"translations"`
 }
@@ -84,6 +85,7 @@ func (client TranslatorClient) Process(figmaUrl string) (ProcessResult, error) {
 	}
 
 	return ProcessResult{
+		FigmaSourceUrl:  figmaUrl,
 		ContextImageUrl: contextImageUrl,
 		Translations:    translations,
 	}, nil

@@ -1,49 +1,37 @@
 package template
 
 import "translang/translator"
-import "fmt"
-
-import "encoding/base64"
-
-templ TranslationBase(connectionString string) {
-	<div hx-swap-oob="innerHTML:#translation">
-		<div class="card card-side bg-base-100 shadow-sm" hx-ext="sse" sse-connect={ connectionString }>
-			<figure>
-				<img
-					class="skeleton h-32 w-32"
-					sse-swap="contextImage"
-					hx-swap="outerHTML"
-				/>
-			</figure>
-			<div class="card-body">
-				<ul class="list bg-base-100 rounded-box shadow-md" id="translations" hx-swap="afterbegin" sse-swap="translation"></ul>
-			</div>
-		</div>
-	</div>
-}
 
 templ TranslationContextImage(imageUrl string) {
-	<img
-		src={ imageUrl }
-		class="object-contain"
-	/>
-}
-
-func encodeNodeID(nodeID string) string {
-	return base64.StdEncoding.EncodeToString([]byte(nodeID))
-}
-
-func nodeOOBTarget(nodeID string) string {
-	return fmt.Sprintf("#%s", encodeNodeID(nodeID))
+	<figure>
+		<img
+			src={ imageUrl }
+			class="object-contain"
+		/>
+	</figure>
 }
 
 templ TranslationNode(translation translator.TranslationResult) {
-	<li class="list-row" id={ encodeNodeID(translation.NodeId) }>
-		<div>
-			<div>{ translation.CopyKey }</div>
-			for _, value := range translation.Values {
-				<div class="text-xs uppercase font-semibold opacity-60">{ value.Text }</div>
-			}
+	<div>
+		<h2 class="text-xl mb-2">{ translation.CopyKey }</h2>
+		<p class="mb-4">{ translation.Source }</p>
+		<div class="overflow-x-auto">
+			<table class="table">
+				<thead>
+					<tr>
+						<th>Language</th>
+						<th>Translation</th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, value := range translation.Values {
+						<tr>
+							<th class="font-normal">{ value.Language }</th>
+							<th class="font-normal">{ value.Text }</th>
+						</tr>
+					}
+				</tbody>
+			</table>
 		</div>
-	</li>
+	</div>
 }

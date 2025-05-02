@@ -6,6 +6,30 @@ import (
 	"translang/translator"
 )
 
+func (translation *Translation) ToResult(client db.DBClient) (translator.ProcessResult, error) {
+	result := translator.ProcessResult{
+		FigmaSourceUrl:  translation.FigmaSourceUrl,
+		ContextImageUrl: translation.ContextImageUrl.String,
+		Translations:    []translator.TranslationResult{},
+	}
+
+	nodes, err := translation.Nodes(client)
+	if err != nil {
+		return translator.ProcessResult{}, err
+	}
+
+	for _, node := range nodes {
+		translationResult, err := node.ToResult(client)
+		if err != nil {
+			return translator.ProcessResult{}, err
+		}
+
+		result.Translations = append(result.Translations, translationResult)
+	}
+
+	return result, nil
+}
+
 func (node *TranslationNode) ToResult(client db.DBClient) (translator.TranslationResult, error) {
 	result := translator.TranslationResult{
 		NodeId:  node.FigmaTextNodeId,

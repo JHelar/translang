@@ -1,6 +1,9 @@
 ## Translang concept idea
 
-Figma url to test on: https://www.figma.com/design/uT0nuPS2pCAEH8J7ZB0Oi8/Accessibility?node-id=90-2607&t=MxOwcuX0cxtxQEpy-4
+Figma url to test on: 
+https://www.figma.com/design/uT0nuPS2pCAEH8J7ZB0Oi8/Accessibility?node-id=90-2607&t=MxOwcuX0cxtxQEpy-4
+https://www.figma.com/design/uT0nuPS2pCAEH8J7ZB0Oi8/Accessibility?node-id=90-2757&t=KA8BCplH0KCxx1zL-4
+https://www.figma.com/design/uT0nuPS2pCAEH8J7ZB0Oi8/Accessibility?node-id=90-2912&t=KA8BCplH0KCxx1zL-4
 
 Set env in Powershell...:
 ```powershell

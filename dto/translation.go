@@ -28,6 +28,18 @@ type TranslationNodeValue struct {
 	CopyLanguage      string `db:"copy_language"`
 }
 
+const SELECT_ALL_TRANSLATIONS = `
+select id,figma_source_url,context_image_url,created_at,synced_at from translation
+`
+
+func GetAllTranslations(client db.DBClient) ([]Translation, error) {
+	translations := []Translation{}
+	if err := client.DB.Select(&translations, SELECT_ALL_TRANSLATIONS); err != nil {
+		return nil, err
+	}
+	return translations, nil
+}
+
 const UPSERT_TRANSLATION_QUERY = `
 insert into translation (figma_source_url) values (?) 
 	on conflict (figma_source_url) do update set synced_at=current_timestamp
@@ -46,6 +58,19 @@ func UpsertTranslation(figmaUrl string, client db.DBClient) (Translation, error)
 		return Translation{}, err
 	}
 	return translation, nil
+}
+
+const DELETE_TRANSLATION_QUERY = `
+delete from translation where figma_source_url=$1
+`
+
+func DeleteTranslation(figmaUrl string, client db.DBClient) error {
+	tx := client.DB.MustBegin()
+	tx.MustExec(DELETE_TRANSLATION_QUERY, figmaUrl)
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	return nil
 }
 
 const GET_TRANSLATION_BY_ID_QUERY = `
