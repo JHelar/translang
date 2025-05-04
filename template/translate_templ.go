@@ -38,20 +38,20 @@ func TranslationModal(props TranslationModalProps) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<dialog id=\"translation_modal\" class=\"modal\" hx-swap-oob=\"beforebegin:#translate\" hx-ext=\"sse\" hx-get=\"/translate\" hx-swap=\"delete\" hx-trigger=\"close delay:250ms\" sse-connect=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div hx-swap-oob=\"beforebegin:#translate\"><dialog id=\"translation_modal\" class=\"modal\" hx-ext=\"sse\" hx-get=\"/translate\" hx-swap=\"delete\" hx-trigger=\"close delay:250ms\" sse-connect=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(props.SSEUrl)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `template/translate.templ`, Line: 13, Col: 190}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `template/translate.templ`, Line: 14, Col: 154}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" sse-close=\"close\" hx-on:htmx:load=\"this.showModal()\"><form method=\"dialog\" class=\"modal-backdrop\"><button>close</button></form><div class=\"modal-box flex flex-col items-center max-w-4xl\"><form method=\"dialog\"><button class=\"btn btn-sm btn-circle btn-ghost absolute right-2 top-2\">✕</button></form><div class=\"skeleton h-72 w-96\" sse-swap=\"contextImage\" hx-swap=\"outerHTML\"></div><div id=\"translations\" hx-swap=\"afterbegin\" sse-swap=\"translation\" class=\"mt-8 gap-y-8 flex flex-col\"><div id=\"translation_skeleton\" sse-swap=\"close\" hx-swap=\"delete\"><div class=\"skeleton h-7 w-full mb-2\"></div><div class=\"skeleton h-6 w-full mb-4\"></div><div class=\"overflow-x-auto\"><table class=\"table\"><thead><tr><th>Language</th><th>Translation</th></tr></thead> <tbody><tr><th><div class=\"skeleton w-44 h-11\"></div></th><th><div class=\"skeleton w-64 h-11\"></div></th></tr></tbody></table></div></div></div></div></dialog>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" sse-close=\"close\" hx-on:htmx:load=\"this.showModal()\"><form method=\"dialog\" class=\"modal-backdrop\"><button>close</button></form><div class=\"modal-box flex flex-col items-center max-w-4xl\"><form method=\"dialog\"><button class=\"btn btn-sm btn-circle btn-ghost absolute right-2 top-2\">✕</button></form><div class=\"skeleton h-72 w-96\" sse-swap=\"contextImage\" hx-swap=\"outerHTML\"></div><div id=\"translations\" hx-swap=\"afterbegin\" sse-swap=\"translation\" class=\"mt-8 gap-y-8 flex flex-col\"><div id=\"translation_skeleton\" sse-swap=\"close\" hx-swap=\"delete\"><div class=\"skeleton h-7 w-full mb-2\"></div><div class=\"skeleton h-6 w-full mb-4\"></div><div class=\"overflow-x-auto\"><table class=\"table\"><thead><tr><th>Language</th><th>Translation</th></tr></thead> <tbody><tr><th><div class=\"skeleton w-44 h-11\"></div></th><th><div class=\"skeleton w-64 h-11\"></div></th></tr></tbody></table></div></div></div></div></dialog></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -92,7 +92,7 @@ func TranslationRow(result translator.ProcessResult) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(result.ContextImageUrl)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `template/translate.templ`, Line: 62, Col: 33}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `template/translate.templ`, Line: 64, Col: 33}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
@@ -114,7 +114,7 @@ func TranslationRow(result translator.ProcessResult) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(result.FigmaSourceUrl)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `template/translate.templ`, Line: 69, Col: 92}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `template/translate.templ`, Line: 71, Col: 92}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
@@ -127,7 +127,7 @@ func TranslationRow(result translator.ProcessResult) templ.Component {
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", len(result.Translations)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `template/translate.templ`, Line: 72, Col: 48}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `template/translate.templ`, Line: 74, Col: 48}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
@@ -140,7 +140,7 @@ func TranslationRow(result translator.ProcessResult) templ.Component {
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/translate?figmaUrl=%s", url.QueryEscape(result.FigmaSourceUrl)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `template/translate.templ`, Line: 75, Col: 140}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `template/translate.templ`, Line: 77, Col: 140}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {

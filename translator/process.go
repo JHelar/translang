@@ -57,7 +57,6 @@ func (client TranslatorClient) ProcessTextTranslations(figmaUrl string, translat
 			},
 		}
 	}
-	close(translationResult)
 }
 
 func (client TranslatorClient) Process(figmaUrl string) (ProcessResult, error) {

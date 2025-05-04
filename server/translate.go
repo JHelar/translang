@@ -2,10 +2,11 @@ package server
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
-	"strings"
 	"translang/dto"
+	"translang/server/sse"
 	"translang/template"
 	"translang/translator"
 )
@@ -70,21 +71,15 @@ func (client ServerClient) TranslateStreamRoute(w http.ResponseWriter, r *http.R
 		w.WriteHeader(404)
 		return
 	}
-
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Expose-Headers", "Content-Type")
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
+	sseClient := sse.NewClient(w)
+	defer sseClient.Close()
 
 	imageUrlChan := make(chan string)
 	translationChan := make(chan translator.TranslationResult)
 	errorChan := make(chan error)
 
-	var stringBuilder strings.Builder
-
 	go func() {
-		if translation.ContextImageUrl.Valid {
+		if translation.ContextImageUrl.Valid && translation.ContextImageUrl.String != "" {
 			imageUrlChan <- translation.ContextImageUrl.String
 		} else {
 			client.translator.ProcessContextImage(translation.FigmaSourceUrl, imageUrlChan, errorChan)
@@ -92,6 +87,8 @@ func (client ServerClient) TranslateStreamRoute(w http.ResponseWriter, r *http.R
 	}()
 
 	go func() {
+		defer close(translationChan)
+
 		nodes, err := translation.Nodes(client.db)
 		if err != nil {
 			errorChan <- err
@@ -112,10 +109,11 @@ func (client ServerClient) TranslateStreamRoute(w http.ResponseWriter, r *http.R
 	}()
 
 	moreTranslations := true
-	for moreTranslations {
+	imageReturned := false
+	for moreTranslations || !imageReturned {
 		select {
-		case translationResult, moreTranslations := <-translationChan:
-			if moreTranslations {
+		case translationResult, done := <-translationChan:
+			if done {
 				go func() {
 					node, err := translation.UpsertNode(translationResult.NodeId, translationResult.Source, translationResult.CopyKey, client.db)
 					if err != nil {
@@ -130,27 +128,23 @@ func (client ServerClient) TranslateStreamRoute(w http.ResponseWriter, r *http.R
 					}
 				}()
 
-				stringBuilder.WriteString("event:translation\ndata:")
-				template.TranslationNode(translationResult).Render(r.Context(), &stringBuilder)
-				stringBuilder.WriteString("\n\n")
-
-				w.Write([]byte(stringBuilder.String()))
-				w.(http.Flusher).Flush()
-				stringBuilder.Reset()
+				sseClient.SendEvent("translation", func(w io.Writer) {
+					template.TranslationNode(translationResult).Render(r.Context(), w)
+				})
+			} else {
+				moreTranslations = false
 			}
 		case contextImageUrl := <-imageUrlChan:
 			go translation.UpdateContextImage(contextImageUrl, client.db)
 
-			stringBuilder.WriteString("event:contextImage\ndata:")
-			template.TranslationContextImage(contextImageUrl).Render(r.Context(), &stringBuilder)
-			stringBuilder.WriteString("\n\n")
-
-			w.Write([]byte(stringBuilder.String()))
-			w.(http.Flusher).Flush()
-			stringBuilder.Reset()
+			sseClient.SendEvent("contextImage", func(w io.Writer) {
+				template.TranslationContextImage(contextImageUrl).Render(r.Context(), w)
+			})
+			imageReturned = true
 		case err := <-errorChan:
 			fmt.Printf("Error generating translations: %v\n", err)
 			moreTranslations = false
+			imageReturned = true
 		}
 	}
 }
