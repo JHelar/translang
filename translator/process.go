@@ -1,5 +1,7 @@
 package translator
 
+import "translang/persistence"
+
 type TranslationValue struct {
 	Language string `json:"language"`
 	Text     string `json:"text"`
@@ -27,7 +29,7 @@ func (client TranslatorClient) ProcessContextImage(figmaUrl string, imageUrlChan
 	}
 }
 
-func (client TranslatorClient) ProcessTextTranslations(figmaUrl string, translationResult chan<- TranslationResult, errorChan chan<- error) {
+func (client TranslatorClient) ProcessTextTranslations(figmaUrl string, translationResult chan<- TranslationResult, errorChan chan<- error, persistenceClient persistence.PersistenceClient) {
 	node, err := client.figmaClient.GetFileNodes(figmaUrl)
 	if err != nil {
 		errorChan <- err
@@ -36,6 +38,24 @@ func (client TranslatorClient) ProcessTextTranslations(figmaUrl string, translat
 
 	textNodes := node.FindAllNodesOfType("TEXT")
 	for _, textNode := range textNodes {
+		node, err := persistenceClient.GetNodeFromSourceText(textNode.Characters)
+		if err == nil {
+			payload, _ := node.ToPayload()
+			var values []TranslationValue
+			for _, value := range payload.Values {
+				values = append(values, TranslationValue{
+					Language: value.Language,
+					Text:     value.Text,
+				})
+			}
+			translationResult <- TranslationResult{
+				NodeId:  payload.NodeId,
+				Source:  payload.Source,
+				CopyKey: payload.CopyKey,
+				Values:  values,
+			}
+			continue
+		}
 		translation := client.openaiClient.Translate(textNode.Characters)
 		translationResult <- TranslationResult{
 			NodeId:  textNode.ID,
@@ -65,7 +85,7 @@ func (client TranslatorClient) Process(figmaUrl string) (ProcessResult, error) {
 	errorChan := make(chan error)
 
 	go client.ProcessContextImage(figmaUrl, imageUrlChan, errorChan)
-	go client.ProcessTextTranslations(figmaUrl, translationChan, errorChan)
+	go client.ProcessTextTranslations(figmaUrl, translationChan, errorChan, nil)
 
 	var contextImageUrl string
 	var translations []TranslationResult

@@ -4,60 +4,94 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"translang/persistence"
 	"translang/server/sse"
 	"translang/template"
 	"translang/translator"
 )
 
-func (client ServerClient) TranslateRoute(w http.ResponseWriter, r *http.Request) {
+func (client ServerClient) TranslationsRoute(w http.ResponseWriter, r *http.Request) {
 	translations, err := client.persistence.GetAllTranslations()
 	if err != nil {
-		fmt.Printf("Error retreiving translation: %v\n", err)
-		w.WriteHeader(500)
+		http.Error(w, fmt.Sprintf("Error retreiving translation: %v\n", err), 500)
 		return
 	}
 
-	results := []translator.ProcessResult{}
+	var rows []template.TranslateRowProps
 	for _, translation := range translations {
-		result, err := translation.ToResult()
-		if err != nil {
-			w.WriteHeader(500)
-			return
-		}
-		results = append(results, result)
+		contextImageUrl, _ := translation.GetContextImageUrl()
+		nodes, _ := translation.GetAllNodes()
+		detailsUrl, _ := client.router.Get("getTranslation").URL("id", translation.GetID())
+
+		rows = append(rows, template.TranslateRowProps{
+			ContextImageUrl:  contextImageUrl,
+			FigmaSourceUrl:   translation.GetFigmaSourceUrl(),
+			TranslationCount: fmt.Sprint(len(nodes)),
+			DetailsUrl:       detailsUrl.String(),
+		})
 	}
+
+	createTranslationUrl, _ := client.router.Get("createTranslation").URL()
 
 	props := template.TranslateProps{
-		Results: results,
-	}
-
-	r.ParseForm()
-	figmaUrl := r.Form.Get("figmaUrl")
-	if figmaUrl != "" {
-		translation, err := client.persistence.UpsertTranslation(figmaUrl)
-		if err != nil {
-			fmt.Printf("Error creating translation: %v\n", err)
-		} else {
-			props.Modal = template.TranslationModalProps{
-				SSEUrl:         fmt.Sprintf("/translate/stream?id=%s", translation.GetID()),
-				FigmaSourceUrl: figmaUrl,
-			}
-		}
+		Rows:                 rows,
+		CreateTranslationUrl: createTranslationUrl.String(),
 	}
 
 	template.Translate(props).Render(r.Context(), w)
-
 }
 
-func (client ServerClient) TranslateStreamRoute(w http.ResponseWriter, r *http.Request) {
-	translation, err := client.persistence.GetTranslationByID(r.URL.Query().Get("id"))
-	if err != nil {
-		fmt.Printf("Error getting translation: %v\n", err)
-		w.WriteHeader(404)
+func (client ServerClient) CreateTranslationRoute(w http.ResponseWriter, r *http.Request) {
+	figmaUrl := r.Form.Get("figmaUrl")
+	if figmaUrl == "" {
+		http.Error(w, "Missing figmaUrl", http.StatusBadRequest)
 		return
 	}
 
-	sseClient := sse.NewClient(w)
+	translation, err := client.persistence.UpsertTranslation(figmaUrl)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error creating translation: %v\n", err), http.StatusInternalServerError)
+		return
+	}
+
+	sseURL, _ := client.router.Get("streamTranslation").URL("id", translation.GetID())
+	props := template.TranslationModalProps{
+		SSEUrl: sseURL.String(),
+	}
+
+	template.TranslationModal(props).Render(r.Context(), w)
+}
+
+func (client ServerClient) TranslationDetailsRoute(w http.ResponseWriter, r *http.Request) {
+	translation, err := client.persistence.GetTranslationByID(r.Form.Get("id"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	sseURL, _ := client.router.Get("streamTranslation").URL("id", translation.GetID())
+	props := template.TranslationModalProps{
+		SSEUrl: sseURL.String(),
+	}
+
+	template.TranslationModal(props).Render(r.Context(), w)
+}
+
+func (client ServerClient) DeleteTranslationRoute(w http.ResponseWriter, r *http.Request) {
+	if err := client.persistence.DeleteTranslationByID(r.Form.Get("id")); err != nil {
+		http.Error(w, fmt.Sprintf("Error deleting translation: %v\n", err), 404)
+		return
+	}
+}
+
+func (client ServerClient) TranslateStreamRoute(w http.ResponseWriter, r *http.Request) {
+	translation, err := client.persistence.GetTranslationByID(r.Form.Get("id"))
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error getting translation: %v\n", err), 404)
+		return
+	}
+
+	sseClient := sse.NewClient(w, r)
 	defer sseClient.Close()
 
 	imageUrlChan := make(chan string)
@@ -83,16 +117,29 @@ func (client ServerClient) TranslateStreamRoute(w http.ResponseWriter, r *http.R
 		}
 		if len(nodes) > 0 {
 			for _, node := range nodes {
-				result, err := node.ToResult()
+				result, err := node.ToPayload()
 				if err != nil {
 					errorChan <- err
 					return
 				}
-				translationChan <- result
+
+				var values []translator.TranslationValue
+				for _, value := range result.Values {
+					values = append(values, translator.TranslationValue{
+						Language: value.Language,
+						Text:     value.Text,
+					})
+				}
+				translationChan <- translator.TranslationResult{
+					NodeId:  result.NodeId,
+					Source:  result.Source,
+					CopyKey: result.CopyKey,
+					Values:  values,
+				}
 			}
 			return
 		}
-		client.translator.ProcessTextTranslations(translation.GetFigmaSourceUrl(), translationChan, errorChan)
+		client.translator.ProcessTextTranslations(translation.GetFigmaSourceUrl(), translationChan, errorChan, client.persistence)
 	}()
 
 	moreTranslations := true
@@ -101,7 +148,22 @@ func (client ServerClient) TranslateStreamRoute(w http.ResponseWriter, r *http.R
 		select {
 		case translationResult, done := <-translationChan:
 			if done {
-				go translation.UpsertNode(translationResult)
+				var values []persistence.ValuePayload
+				for _, value := range translationResult.Values {
+					values = append(values, persistence.ValuePayload{
+						Language: value.Language,
+						Text:     value.Text,
+					})
+				}
+				_, err := translation.UpsertNode(persistence.NodePayload{
+					NodeId:  translationResult.NodeId,
+					Source:  translationResult.Source,
+					CopyKey: translationResult.CopyKey,
+					Values:  values,
+				})
+				if err != nil {
+					fmt.Print(err)
+				}
 
 				sseClient.SendEvent("translation", func(w io.Writer) {
 					template.TranslationNode(translationResult).Render(r.Context(), w)
@@ -110,7 +172,10 @@ func (client ServerClient) TranslateStreamRoute(w http.ResponseWriter, r *http.R
 				moreTranslations = false
 			}
 		case contextImageUrl := <-imageUrlChan:
-			go translation.UpdateContextImage(contextImageUrl)
+			err := translation.UpdateContextImage(contextImageUrl)
+			if err != nil {
+				fmt.Print(err)
+			}
 
 			sseClient.SendEvent("contextImage", func(w io.Writer) {
 				template.TranslationContextImage(contextImageUrl).Render(r.Context(), w)

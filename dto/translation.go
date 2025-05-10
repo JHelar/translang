@@ -61,12 +61,12 @@ func UpsertTranslation(figmaUrl string, client db.DBClient) (Translation, error)
 }
 
 const DELETE_TRANSLATION_QUERY = `
-delete from translation where figma_source_url=$1
+delete from translation where id=$1
 `
 
-func DeleteTranslation(figmaUrl string, client db.DBClient) error {
+func DeleteTranslation(translationID int64, client db.DBClient) error {
 	tx := client.DB.MustBegin()
-	tx.MustExec(DELETE_TRANSLATION_QUERY, figmaUrl)
+	tx.MustExec(DELETE_TRANSLATION_QUERY, translationID)
 	if err := tx.Commit(); err != nil {
 		return err
 	}
@@ -83,6 +83,19 @@ func GetTranslationByID(translationID int64, client db.DBClient) (Translation, e
 		return Translation{}, err
 	}
 	return translation, nil
+}
+
+const GET_TRANSLATION_NODE_BY_SOURCE_TEXT = `
+select id,figma_text_node_id,translation_id,source_text,copy_key from translation_node where source_text=$1
+`
+
+func GetTranslationNodeBySourceText(sourceText string, client *db.DBClient) (TranslationNode, error) {
+	node := TranslationNode{}
+	if err := client.DB.Get(&node, GET_TRANSLATION_NODE_BY_SOURCE_TEXT, sourceText); err != nil {
+		return TranslationNode{}, err
+	}
+
+	return node, nil
 }
 
 const UPDATE_CONTEXT_IMAGE = `

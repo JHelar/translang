@@ -2,10 +2,10 @@ package db
 
 import (
 	"fmt"
+	"strconv"
 	"translang/db"
 	"translang/dto"
 	"translang/persistence"
-	"translang/translator"
 )
 
 type DBPersistenceTranslation struct {
@@ -17,14 +17,15 @@ func (client DBPersistenceTranslation) UpdateContextImage(contextImageUrl string
 	return client.translation.UpdateContextImage(contextImageUrl, client.DBClient)
 }
 
-func (client DBPersistenceTranslation) UpsertNode(result translator.TranslationResult) (persistence.PersistenceNode, error) {
-	node, err := client.translation.UpsertNode(result.NodeId, result.Source, result.CopyKey, client.DBClient)
+func (client DBPersistenceTranslation) UpsertNode(payload persistence.NodePayload) (persistence.PersistenceNode, error) {
+	node, err := client.translation.UpsertNode(payload.NodeId, payload.Source, payload.CopyKey, client.DBClient)
 	if err != nil {
 		return DBPersistenceNode{}, err
 	}
 
-	for _, value := range result.Values {
-		if _, err = node.UpsertValue(value.Language, value.Text, client.DBClient); err != nil {
+	for _, value := range payload.Values {
+		_, err = node.UpsertValue(value.Language, value.Text, client.DBClient)
+		if err != nil {
 			return DBPersistenceNode{}, err
 		}
 	}
@@ -52,10 +53,6 @@ func (client DBPersistenceTranslation) GetAllNodes() ([]persistence.PersistenceN
 	return persistenceNodes, nil
 }
 
-func (client DBPersistenceTranslation) ToResult() (translator.ProcessResult, error) {
-	return client.translation.ToResult(client.DBClient)
-}
-
 func (client DBPersistenceTranslation) GetContextImageUrl() (string, error) {
 	if client.translation.ContextImageUrl.Valid && client.translation.ContextImageUrl.String != "" {
 		return client.translation.ContextImageUrl.String, nil
@@ -69,5 +66,5 @@ func (client DBPersistenceTranslation) GetFigmaSourceUrl() string {
 }
 
 func (client DBPersistenceTranslation) GetID() string {
-	return fmt.Sprint(client.translation.ID)
+	return strconv.FormatInt(client.translation.ID, 10)
 }

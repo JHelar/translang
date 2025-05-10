@@ -4,7 +4,6 @@ import (
 	"translang/db"
 	"translang/dto"
 	"translang/persistence"
-	"translang/translator"
 )
 
 type DBPersistenceNode struct {
@@ -12,8 +11,8 @@ type DBPersistenceNode struct {
 	node dto.TranslationNode
 }
 
-func (client DBPersistenceNode) UpsertValue(language string, text string) (persistence.PersistenceValue, error) {
-	value, err := client.node.UpsertValue(language, text, client.DBClient)
+func (client DBPersistenceNode) UpsertValue(payload persistence.ValuePayload) (persistence.PersistenceValue, error) {
+	value, err := client.node.UpsertValue(payload.Language, payload.Text, client.DBClient)
 	if err != nil {
 		return DBPersistenceValue{}, err
 	}
@@ -24,6 +23,24 @@ func (client DBPersistenceNode) UpsertValue(language string, text string) (persi
 	}, nil
 }
 
-func (client DBPersistenceNode) ToResult() (translator.TranslationResult, error) {
-	return client.node.ToResult(client.DBClient)
+func (client DBPersistenceNode) ToPayload() (persistence.NodePayload, error) {
+	values, err := client.node.Values(client.DBClient)
+	if err != nil {
+		return persistence.NodePayload{}, err
+	}
+
+	var valuesPayload []persistence.ValuePayload
+	for _, value := range values {
+		valuesPayload = append(valuesPayload, persistence.ValuePayload{
+			Language: value.CopyLanguage,
+			Text:     value.CopyText,
+		})
+	}
+
+	return persistence.NodePayload{
+		NodeId:  client.node.FigmaTextNodeId,
+		Source:  client.node.SourceText,
+		CopyKey: client.node.CopyKey,
+		Values:  valuesPayload,
+	}, nil
 }

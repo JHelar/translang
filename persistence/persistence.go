@@ -1,14 +1,24 @@
 package persistence
 
-import "translang/translator"
-
 type PersistenceValue interface {
 }
 
-type PersistenceNode interface {
-	UpsertValue(language string, text string) (PersistenceValue, error)
+type ValuePayload struct {
+	Language string
+	Text     string
+}
 
-	ToResult() (translator.TranslationResult, error)
+type PersistenceNode interface {
+	UpsertValue(payload ValuePayload) (PersistenceValue, error)
+
+	ToPayload() (NodePayload, error)
+}
+
+type NodePayload struct {
+	NodeId  string
+	Source  string
+	CopyKey string
+	Values  []ValuePayload
 }
 
 type PersistenceTranslation interface {
@@ -17,15 +27,18 @@ type PersistenceTranslation interface {
 	GetID() string
 
 	UpdateContextImage(contextImageUrl string) error
-	UpsertNode(result translator.TranslationResult) (PersistenceNode, error)
+	UpsertNode(payload NodePayload) (PersistenceNode, error)
 
 	GetAllNodes() ([]PersistenceNode, error)
-
-	ToResult() (translator.ProcessResult, error)
 }
 
-type Persistence interface {
+type PersistenceClient interface {
 	UpsertTranslation(figmaUrl string) (PersistenceTranslation, error)
+
 	GetTranslationByID(translationID string) (PersistenceTranslation, error)
 	GetAllTranslations() ([]PersistenceTranslation, error)
+
+	DeleteTranslationByID(translationID string) error
+
+	GetNodeFromSourceText(sourceText string) (PersistenceNode, error)
 }

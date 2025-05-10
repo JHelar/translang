@@ -1,17 +1,12 @@
 package template
 
-import "translang/translator"
-import "fmt"
-import "net/url"
-
 type TranslationModalProps struct {
-	SSEUrl         string
-	FigmaSourceUrl string
+	SSEUrl string
 }
 
 templ TranslationModal(props TranslationModalProps) {
 	<div hx-swap-oob="beforebegin:#translate">
-		<dialog id="translation_modal" class="modal" hx-ext="sse" hx-get="/translate" hx-swap="delete" hx-trigger="close delay:250ms" sse-connect={ props.SSEUrl } sse-close="close" hx-on:htmx:load="this.showModal()">
+		<dialog id="translation_modal" class="modal" hx-ext="sse" hx-get="/translate" hx-select="body" hx-swap="outerHTML" hx-trigger="close delay:250ms" sse-connect={ props.SSEUrl } sse-close="close" hx-on:htmx:load="this.showModal()">
 			<form method="dialog" class="modal-backdrop">
 				<button>close</button>
 			</form>
@@ -32,7 +27,7 @@ templ TranslationModal(props TranslationModalProps) {
 							<table class="table">
 								<thead>
 									<tr>
-										<th>Language</th>
+										<th class="w-44">Language</th>
 										<th>Translation</th>
 									</tr>
 								</thead>
@@ -51,46 +46,50 @@ templ TranslationModal(props TranslationModalProps) {
 	</div>
 }
 
-type TranslateProps struct {
-	Results []translator.ProcessResult
-	Modal   TranslationModalProps
+type TranslateRowProps struct {
+	ContextImageUrl  string
+	FigmaSourceUrl   string
+	TranslationCount string
+	DetailsUrl       string
 }
 
-templ TranslationRow(result translator.ProcessResult) {
+templ TranslationRow(props TranslateRowProps) {
 	<tr>
 		<td>
 			<div class="max-w-sm">
 				<img
-					src={ result.ContextImageUrl }
+					src={ props.ContextImageUrl }
 					alt="Figma contextual image"
 					class="object-contain"
 				/>
 			</div>
 		</td>
 		<td>
-			<a href={ templ.URL(result.FigmaSourceUrl) } class="btn btn-link">{ result.FigmaSourceUrl }</a>
+			<a href={ templ.URL(props.FigmaSourceUrl) } class="btn btn-link">{ props.FigmaSourceUrl }</a>
 		</td>
 		<td>
-			{ fmt.Sprintf("%d", len(result.Translations)) }
+			{ props.TranslationCount }
 		</td>
 		<td>
-			<a class="btn btn-soft btn-primary" hx-swap="none" hx-get={ fmt.Sprintf("/translate?figmaUrl=%s", url.QueryEscape(result.FigmaSourceUrl)) } href={ templ.URL(fmt.Sprintf("/translate?figmaUrl=%s", url.QueryEscape(result.FigmaSourceUrl))) }>Details</a>
-			<a class="btn btn-soft btn-error" href={ templ.URL(fmt.Sprintf("/translate?figmaUrl=%s&delete=true", url.QueryEscape(result.FigmaSourceUrl))) }>Delete</a>
+			<a class="btn btn-soft btn-primary" hx-swap="none" hx-get={ props.DetailsUrl } href={ templ.URL(props.DetailsUrl) }>Details</a>
+			<a class="btn btn-soft btn-error" hx-swap="delete" hx-target="closest tr" hx-delete={ props.DetailsUrl }>Delete</a>
 		</td>
 	</tr>
+}
+
+type TranslateProps struct {
+	CreateTranslationUrl string
+	Rows                 []TranslateRowProps
 }
 
 templ Translate(props TranslateProps) {
 	@Base(BaseProps{
 		Title: "Translang - Translation",
 	}) {
-		if props.Modal != (TranslationModalProps{}) {
-			@TranslationModal(props.Modal)
-		}
 		<div id="translate">
 			<div class="card bg-base-100 w-full m-auto max-w-sm shrink-0">
 				<div class="card-body">
-					<form hx-post="/translate" hx-swap="none">
+					<form hx-post={ props.CreateTranslationUrl } hx-swap="none">
 						<fieldset class="fieldset">
 							<label class="label" for="figmaUrl">Figma url</label>
 							<input type="url" class="input" id="figmaUrl" name="figmaUrl" placeholder="Url to a figma section"/>
@@ -110,7 +109,7 @@ templ Translate(props TranslateProps) {
 						</tr>
 					</thead>
 					<tbody>
-						for _, translation := range props.Results {
+						for _, translation := range props.Rows {
 							@TranslationRow(translation)
 						}
 					</tbody>

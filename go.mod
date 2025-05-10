@@ -6,6 +6,7 @@ require (
 	github.com/a-h/templ v0.3.857 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
+	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/invopop/jsonschema v0.13.0 // indirect
 	github.com/jmoiron/sqlx v1.4.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect

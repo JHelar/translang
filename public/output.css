@@ -812,6 +812,9 @@
   .h-72 {
     height: calc(var(--spacing) * 72);
   }
+  .max-h-96 {
+    max-height: calc(var(--spacing) * 96);
+  }
   .min-h-screen {
     min-height: 100vh;
   }

@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"strings"
 	"translang/persistence/db"
 	"translang/server"
 	"translang/translator"
@@ -11,55 +12,43 @@ import (
 )
 
 func getTokens() (string, string) {
-	figmaPAT := os.Getenv("FIGMA_PAT")
-	if figmaPAT == "" {
+	bytes, err := os.ReadFile(".env")
+	if err != nil {
+		log.Fatal(err)
+	}
+	environmentsString := string(bytes)
+	environmentsLines := strings.Split(environmentsString, "\n")
+
+	var environments struct {
+		FIGMA_PAT      string
+		OPENAI_API_KEY string
+	}
+
+	for _, line := range environmentsLines {
+		keyVal := strings.Split(line, "=")
+		if len(keyVal) != 2 {
+			log.Fatal("Environment value is malformed")
+		}
+		if keyVal[0] == "FIGMA_PAT" {
+			environments.FIGMA_PAT = strings.TrimSpace(keyVal[1])
+		} else if keyVal[0] == "OPENAI_API_KEY" {
+			environments.OPENAI_API_KEY = strings.TrimSpace(keyVal[1])
+		}
+	}
+
+	if environments.FIGMA_PAT == "" {
 		log.Fatalf("Missing FIGMA_PAT variable")
 	}
 
-	openaiAPIKey := os.Getenv("OPENAI_API_KEY")
-	if openaiAPIKey == "" {
+	if environments.OPENAI_API_KEY == "" {
 		log.Fatalf("Missing OPENAI_API_KEY variable")
 	}
 
-	return figmaPAT, openaiAPIKey
+	return environments.FIGMA_PAT, environments.OPENAI_API_KEY
 }
 
 func main() {
 	figmaPAT, openaiAPIKey := getTokens()
-	// figmaClient := figma.Client(figmaPAT)
-	// openaiClient := openai.Client(openaiAPIKey)
-
-	// if len(os.Args) < 2 {
-	// 	log.Fatalf("Missing figmaUrl")
-	// }
-
-	// figmaUrl := os.Args[1]
-	// fmt.Printf("Fetching translations for url: %v\n", figmaUrl)
-	// result := Process(figmaUrl, &figmaClient, &openaiClient)
-
-	// resultJSON, err := json.Marshal(result)
-	// if err != nil {
-	// 	log.Fatal("Failed to stringify", err)
-	// }
-
-	// fmt.Print(string(resultJSON))
-
-	// db, err := sql.Open("sqlite3", "./foo.db")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// defer db.Close()
-
-	// sqlStmt := `
-	// create table foo (id integer not null primary key, name text);
-	// delete from foo;
-	// `
-
-	// _, err = db.Exec(sqlStmt)
-	// if err != nil {
-	// 	log.Printf("%q: %s\n", err, sqlStmt)
-	// 	return
-	// }
 	dbPersistenceClient := db.NewClient()
 	translator := translator.NewClient(figmaPAT, openaiAPIKey)
 	serverClient := server.NewClient(translator, dbPersistenceClient)

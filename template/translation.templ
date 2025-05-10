@@ -6,7 +6,7 @@ templ TranslationContextImage(imageUrl string) {
 	<figure>
 		<img
 			src={ imageUrl }
-			class="object-contain"
+			class="object-contain max-h-96"
 		/>
 	</figure>
 }
@@ -19,14 +19,14 @@ templ TranslationNode(translation translator.TranslationResult) {
 			<table class="table">
 				<thead>
 					<tr>
-						<th>Language</th>
+						<th class="w-44">Language</th>
 						<th>Translation</th>
 					</tr>
 				</thead>
 				<tbody>
 					for _, value := range translation.Values {
 						<tr>
-							<th class="font-normal">{ value.Language }</th>
+							<th class="font-normal w-44">{ value.Language }</th>
 							<th class="font-normal">{ value.Text }</th>
 						</tr>
 					}

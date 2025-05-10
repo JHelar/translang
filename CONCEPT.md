@@ -46,3 +46,7 @@ translationNodeValue -> copy_key, translation_node_id, language, text, createdAt
 #### Simpler db handling lib
 For easier handling of struct parsing
 https://github.com/jmoiron/sqlx
+
+### TODO
+- Move DB Client to TranslatorClient
+- Add a one to many releation for translation node by adding a translation_to_translation_node table connecting many transaltion to a single translation node. Allows a translation node to be updated and affect many translations
