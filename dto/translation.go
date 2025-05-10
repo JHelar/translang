@@ -91,7 +91,7 @@ update translation
 	where id=?
 `
 
-func (translation *Translation) UpdateContextImage(contextImageUrl string, client db.DBClient) error {
+func (translation *Translation) UpdateContextImage(contextImageUrl string, client *db.DBClient) error {
 	tx := client.DB.MustBegin()
 	tx.MustExec(UPDATE_CONTEXT_IMAGE, contextImageUrl, translation.ID)
 	if err := tx.Commit(); err != nil {
@@ -112,7 +112,7 @@ insert into translation_node (figma_text_node_id,translation_id,source_text,copy
 	returning id,figma_text_node_id,translation_id,source_text,copy_key
 `
 
-func (translation *Translation) UpsertNode(figmaTextNodeId string, sourceText string, copyKey string, client db.DBClient) (TranslationNode, error) {
+func (translation *Translation) UpsertNode(figmaTextNodeId string, sourceText string, copyKey string, client *db.DBClient) (TranslationNode, error) {
 	translationNode := TranslationNode{}
 
 	tx := client.DB.MustBegin()
@@ -130,7 +130,7 @@ const SELECT_ALL_NODES = `
 select id,figma_text_node_id,translation_id,source_text,copy_key from translation_node where translation_id=?
 `
 
-func (translation *Translation) Nodes(client db.DBClient) ([]TranslationNode, error) {
+func (translation *Translation) Nodes(client *db.DBClient) ([]TranslationNode, error) {
 	nodes := []TranslationNode{}
 	if err := client.DB.Select(&nodes, SELECT_ALL_NODES, translation.ID); err != nil {
 		return nil, err
@@ -144,7 +144,7 @@ insert into translation_node_value (translation_node_id,copy_language,copy_text)
 	returning translation_node_id,copy_language,copy_text
 `
 
-func (node *TranslationNode) UpsertValue(copyLanguage string, copyText string, client db.DBClient) (TranslationNodeValue, error) {
+func (node *TranslationNode) UpsertValue(copyLanguage string, copyText string, client *db.DBClient) (TranslationNodeValue, error) {
 	value := TranslationNodeValue{}
 
 	tx := client.DB.MustBegin()
@@ -161,7 +161,7 @@ const SELECT_ALL_VALUES = `
 select translation_node_id,copy_language,copy_text from translation_node_value where translation_node_id=?
 `
 
-func (node *TranslationNode) Values(client db.DBClient) ([]TranslationNodeValue, error) {
+func (node *TranslationNode) Values(client *db.DBClient) ([]TranslationNodeValue, error) {
 	values := []TranslationNodeValue{}
 	if err := client.DB.Select(&values, SELECT_ALL_VALUES, node.ID); err != nil {
 		return nil, err

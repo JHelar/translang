@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 	"os"
-	"translang/db"
+	"translang/persistence/db"
 	"translang/server"
 	"translang/translator"
 
@@ -60,9 +60,9 @@ func main() {
 	// 	log.Printf("%q: %s\n", err, sqlStmt)
 	// 	return
 	// }
-	db := db.NewClient()
+	dbPersistenceClient := db.NewClient()
 	translator := translator.NewClient(figmaPAT, openaiAPIKey)
-	serverClient := server.NewClient(translator, db)
+	serverClient := server.NewClient(translator, dbPersistenceClient)
 
 	serverClient.ListenAndServe()
 }

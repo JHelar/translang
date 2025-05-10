@@ -4,15 +4,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
-	"translang/dto"
 	"translang/server/sse"
 	"translang/template"
 	"translang/translator"
 )
 
 func (client ServerClient) TranslateRoute(w http.ResponseWriter, r *http.Request) {
-	translations, err := dto.GetAllTranslations(client.db)
+	translations, err := client.persistence.GetAllTranslations()
 	if err != nil {
 		fmt.Printf("Error retreiving translation: %v\n", err)
 		w.WriteHeader(500)
@@ -21,7 +19,7 @@ func (client ServerClient) TranslateRoute(w http.ResponseWriter, r *http.Request
 
 	results := []translator.ProcessResult{}
 	for _, translation := range translations {
-		result, err := translation.ToResult(client.db)
+		result, err := translation.ToResult()
 		if err != nil {
 			w.WriteHeader(500)
 			return
@@ -36,19 +34,12 @@ func (client ServerClient) TranslateRoute(w http.ResponseWriter, r *http.Request
 	r.ParseForm()
 	figmaUrl := r.Form.Get("figmaUrl")
 	if figmaUrl != "" {
-		// if r.Form.Get("delete") == "true" {
-		// 	if err := dto.DeleteTranslation(figmaUrl, client.db); err != nil {
-		// 		fmt.Printf("Error deleting translation: %v\n", err)
-		// 	}
-		// } else {
-
-		// }
-		translation, err := dto.UpsertTranslation(figmaUrl, client.db)
+		translation, err := client.persistence.UpsertTranslation(figmaUrl)
 		if err != nil {
 			fmt.Printf("Error creating translation: %v\n", err)
 		} else {
 			props.Modal = template.TranslationModalProps{
-				SSEUrl:         fmt.Sprintf("/translate/stream?id=%d", translation.ID),
+				SSEUrl:         fmt.Sprintf("/translate/stream?id=%s", translation.GetID()),
 				FigmaSourceUrl: figmaUrl,
 			}
 		}
@@ -59,18 +50,13 @@ func (client ServerClient) TranslateRoute(w http.ResponseWriter, r *http.Request
 }
 
 func (client ServerClient) TranslateStreamRoute(w http.ResponseWriter, r *http.Request) {
-	translationID, err := strconv.ParseInt(r.URL.Query().Get("id"), 10, 64)
+	translation, err := client.persistence.GetTranslationByID(r.URL.Query().Get("id"))
 	if err != nil {
-		w.WriteHeader(422)
-		return
-	}
-
-	translation, err := dto.GetTranslationByID(translationID, client.db)
-	if err != nil {
-		fmt.Printf("Error getting translation (%d): %v\n", translationID, err)
+		fmt.Printf("Error getting translation: %v\n", err)
 		w.WriteHeader(404)
 		return
 	}
+
 	sseClient := sse.NewClient(w)
 	defer sseClient.Close()
 
@@ -79,24 +65,25 @@ func (client ServerClient) TranslateStreamRoute(w http.ResponseWriter, r *http.R
 	errorChan := make(chan error)
 
 	go func() {
-		if translation.ContextImageUrl.Valid && translation.ContextImageUrl.String != "" {
-			imageUrlChan <- translation.ContextImageUrl.String
+		contextImageUrl, err := translation.GetContextImageUrl()
+		if err == nil {
+			imageUrlChan <- contextImageUrl
 		} else {
-			client.translator.ProcessContextImage(translation.FigmaSourceUrl, imageUrlChan, errorChan)
+			client.translator.ProcessContextImage(translation.GetFigmaSourceUrl(), imageUrlChan, errorChan)
 		}
 	}()
 
 	go func() {
 		defer close(translationChan)
 
-		nodes, err := translation.Nodes(client.db)
+		nodes, err := translation.GetAllNodes()
 		if err != nil {
 			errorChan <- err
 			return
 		}
 		if len(nodes) > 0 {
 			for _, node := range nodes {
-				result, err := node.ToResult(client.db)
+				result, err := node.ToResult()
 				if err != nil {
 					errorChan <- err
 					return
@@ -105,7 +92,7 @@ func (client ServerClient) TranslateStreamRoute(w http.ResponseWriter, r *http.R
 			}
 			return
 		}
-		client.translator.ProcessTextTranslations(translation.FigmaSourceUrl, translationChan, errorChan)
+		client.translator.ProcessTextTranslations(translation.GetFigmaSourceUrl(), translationChan, errorChan)
 	}()
 
 	moreTranslations := true
@@ -114,19 +101,7 @@ func (client ServerClient) TranslateStreamRoute(w http.ResponseWriter, r *http.R
 		select {
 		case translationResult, done := <-translationChan:
 			if done {
-				go func() {
-					node, err := translation.UpsertNode(translationResult.NodeId, translationResult.Source, translationResult.CopyKey, client.db)
-					if err != nil {
-						errorChan <- err
-						return
-					}
-					for _, value := range translationResult.Values {
-						if _, err = node.UpsertValue(value.Language, value.Text, client.db); err != nil {
-							errorChan <- err
-							return
-						}
-					}
-				}()
+				go translation.UpsertNode(translationResult)
 
 				sseClient.SendEvent("translation", func(w io.Writer) {
 					template.TranslationNode(translationResult).Render(r.Context(), w)
@@ -135,7 +110,7 @@ func (client ServerClient) TranslateStreamRoute(w http.ResponseWriter, r *http.R
 				moreTranslations = false
 			}
 		case contextImageUrl := <-imageUrlChan:
-			go translation.UpdateContextImage(contextImageUrl, client.db)
+			go translation.UpdateContextImage(contextImageUrl)
 
 			sseClient.SendEvent("contextImage", func(w io.Writer) {
 				template.TranslationContextImage(contextImageUrl).Render(r.Context(), w)
