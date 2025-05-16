@@ -15,16 +15,18 @@ type Translation struct {
 }
 
 type TranslationNode struct {
-	ID              int64  `db:"id"`
-	FigmaTextNodeId string `db:"figma_text_node_id"`
-	SourceText      string `db:"source_text"`
-	CopyKey         string `db:"copy_key"`
+	ID              int64     `db:"id"`
+	FigmaTextNodeId string    `db:"figma_text_node_id"`
+	SourceText      string    `db:"source_text"`
+	CopyKey         string    `db:"copy_key"`
+	CreatedAt       time.Time `db:"created_at"`
 }
 
 type TranslationNodeValue struct {
-	TranslationNodeID int64  `db:"translation_node_id"`
-	CopyText          string `db:"copy_text"`
-	CopyLanguage      string `db:"copy_language"`
+	TranslationNodeID int64     `db:"translation_node_id"`
+	CopyText          string    `db:"copy_text"`
+	CopyLanguage      string    `db:"copy_language"`
+	CreatedAt         time.Time `db:"created_at"`
 }
 
 const SELECT_ALL_TRANSLATIONS = `
@@ -133,7 +135,7 @@ func (translation *Translation) UpdateContextImage(contextImageUrl string, clien
 const UPSERT_TRANSLATION_NODE = `
 insert into translation_node (figma_text_node_id,source_text,copy_key) values (?,?,?)
 	on conflict (figma_text_node_id) do update set source_text=excluded.source_text,copy_key=excluded.copy_key
-	returning id,figma_text_node_id,source_text,copy_key
+	returning id,figma_text_node_id,source_text,copy_key,created_at
 `
 
 const UPSERT_TRANSLATION_NODE_CONNECTION = `
@@ -162,7 +164,7 @@ func (translation *Translation) UpsertNode(figmaTextNodeId string, sourceText st
 }
 
 const SELECT_ALL_NODES_FOR_TRANSLATION = `
-select id,figma_text_node_id,source_text,copy_key 
+select id,figma_text_node_id,source_text,copy_key,created_at
 	from translation_node
 	where id=(select translation_node_id 
 		from translation_to_translation_node
@@ -181,7 +183,7 @@ func (translation *Translation) Nodes(client *db.DBClient) ([]TranslationNode, e
 const UPSERT_VALUE = `
 insert into translation_node_value (translation_node_id,copy_language,copy_text) values (?,?,?)
 	on conflict (copy_language,translation_node_id) do update set copy_text=excluded.copy_text
-	returning translation_node_id,copy_language,copy_text
+	returning translation_node_id,copy_language,copy_text,created_at
 `
 
 func (node *TranslationNode) UpsertValue(copyLanguage string, copyText string, client *db.DBClient) (TranslationNodeValue, error) {
@@ -215,7 +217,7 @@ func (node *TranslationNode) GetTranslations(client *db.DBClient) ([]Translation
 }
 
 const SELECT_ALL_VALUES = `
-select translation_node_id,copy_language,copy_text from translation_node_value where translation_node_id=?
+select translation_node_id,copy_language,copy_text,created_at from translation_node_value where translation_node_id=?
 `
 
 func (node *TranslationNode) Values(client *db.DBClient) ([]TranslationNodeValue, error) {

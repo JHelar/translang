@@ -50,7 +50,7 @@ func getTokens() (string, string) {
 func main() {
 	figmaPAT, openaiAPIKey := getTokens()
 	dbPersistenceClient := db.NewClient()
-	translator := translator.NewClient(figmaPAT, openaiAPIKey)
+	translator := translator.NewClient(figmaPAT, openaiAPIKey, dbPersistenceClient)
 	serverClient := server.NewClient(translator, dbPersistenceClient)
 
 	serverClient.ListenAndServe()

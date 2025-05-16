@@ -12,11 +12,11 @@ type TranslationValue struct {
 type TranslationResult struct {
 	NodeId  string             `json:"nodeId"`
 	Source  string             `json:"source"`
-	CopyKey string             `json:"copuKey"`
+	CopyKey string             `json:"copyKey"`
 	Values  []TranslationValue `json:"values"`
 }
 
-func NodeToTranslationResult(node persistence.PersistenceNode) (TranslationResult, error) {
+func nodeToTranslationResult(node persistence.PersistenceNode) (TranslationResult, error) {
 	payload, err := node.ToPayload()
 	if err != nil {
 		return TranslationResult{}, err
@@ -36,6 +36,23 @@ func NodeToTranslationResult(node persistence.PersistenceNode) (TranslationResul
 	}
 
 	return result, nil
+}
+
+func translationResultToNodePayload(result TranslationResult) persistence.NodePayload {
+	var values []persistence.ValuePayload
+	for _, value := range result.Values {
+		values = append(values, persistence.ValuePayload{
+			Language: value.Language,
+			Text:     value.Text,
+		})
+	}
+
+	return persistence.NodePayload{
+		NodeId:  result.NodeId,
+		Source:  result.Source,
+		CopyKey: result.CopyKey,
+		Values:  values,
+	}
 }
 
 type ProcessResult struct {
@@ -58,11 +75,13 @@ func (client TranslatorClient) ProcessContextImage(translation persistence.Persi
 		imageUrl, err = client.figmaClient.GetImage(translation.GetFigmaSourceUrl())
 		if err != nil {
 			errorChan <- err
-		} else {
-			if err := translation.UpdateContextImage(imageUrl); err != nil {
-				errorChan <- err
-			}
-			imageUrlChan <- imageUrl
+			return
+		}
+
+		imageUrlChan <- imageUrl
+		if err := translation.UpdateContextImage(imageUrl); err != nil {
+			errorChan <- err
+			return
 		}
 	}()
 
@@ -79,7 +98,7 @@ func (client TranslatorClient) ProcessTextTranslations(translation persistence.P
 
 		if err == nil && len(nodes) > 0 {
 			for _, node := range nodes {
-				result, err := NodeToTranslationResult(node)
+				result, err := nodeToTranslationResult(node)
 				if err != nil {
 					errorChan <- err
 					return
@@ -90,7 +109,6 @@ func (client TranslatorClient) ProcessTextTranslations(translation persistence.P
 		}
 
 		node, err := client.figmaClient.GetFileNodes(translation.GetFigmaSourceUrl())
-
 		if err != nil {
 			errorChan <- err
 			return
@@ -99,29 +117,26 @@ func (client TranslatorClient) ProcessTextTranslations(translation persistence.P
 		textNodes := node.FindAllNodesOfType("TEXT")
 		for _, textNode := range textNodes {
 			node, err := client.persistence.GetNodeFromSourceText(textNode.Characters)
+			var result TranslationResult
+
 			if err == nil {
 				payload, _ := node.ToPayload()
-				var values []TranslationValue
+				result.NodeId = payload.NodeId
+				result.Source = payload.Source
+				result.CopyKey = payload.CopyKey
+
 				for _, value := range payload.Values {
-					values = append(values, TranslationValue{
+					result.Values = append(result.Values, TranslationValue{
 						Language: value.Language,
 						Text:     value.Text,
 					})
 				}
-				translationResult <- TranslationResult{
-					NodeId:  payload.NodeId,
-					Source:  payload.Source,
-					CopyKey: payload.CopyKey,
-					Values:  values,
-				}
-				continue
-			}
-			translation := client.openaiClient.Translate(textNode.Characters)
-			translationResult <- TranslationResult{
-				NodeId:  textNode.ID,
-				Source:  translation.Source,
-				CopyKey: translation.CopyKey,
-				Values: []TranslationValue{
+			} else {
+				translation := client.openaiClient.Translate(textNode.Characters)
+				result.NodeId = textNode.ID
+				result.Source = translation.Source
+				result.CopyKey = translation.CopyKey
+				result.Values = []TranslationValue{
 					{
 						Language: "sv",
 						Text:     translation.Swedish,
@@ -134,7 +149,12 @@ func (client TranslatorClient) ProcessTextTranslations(translation persistence.P
 						Language: "fi",
 						Text:     translation.Finnish,
 					},
-				},
+				}
+			}
+
+			translationResult <- result
+			if _, err := translation.UpsertNode(translationResultToNodePayload(result)); err != nil {
+				errorChan <- err
 			}
 		}
 	}()

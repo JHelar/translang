@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"translang/persistence"
 	"translang/server/sse"
 	"translang/template"
 )
@@ -96,51 +95,40 @@ func (client ServerClient) TranslateStreamRoute(w http.ResponseWriter, r *http.R
 	imageUrlChan, imageUrlErrorChan := client.translator.ProcessContextImage(translation)
 	translationChan, translationErrorChan := client.translator.ProcessTextTranslations(translation)
 
-	moreTranslations := true
-	imageReturned := false
-	for moreTranslations || !imageReturned {
+	hasSentTranslations := false
+	hasSentImage := false
+	for !hasSentTranslations || !hasSentImage {
 		select {
-		case translationResult := <-translationChan:
-			// TODO: move upsert to translator
-			var values []persistence.ValuePayload
-			for _, value := range translationResult.Values {
-				values = append(values, persistence.ValuePayload{
-					Language: value.Language,
-					Text:     value.Text,
+		case translationResult, ok := <-translationChan:
+			if ok {
+				sseClient.SendEvent("translation", func(w io.Writer) {
+					template.TranslationNode(translationResult).Render(r.Context(), w)
 				})
+			} else {
+				hasSentTranslations = true
 			}
-			_, err := translation.UpsertNode(persistence.NodePayload{
-				NodeId:  translationResult.NodeId,
-				Source:  translationResult.Source,
-				CopyKey: translationResult.CopyKey,
-				Values:  values,
-			})
-			if err != nil {
-				fmt.Print(err)
-			}
+		default:
+		}
 
-			sseClient.SendEvent("translation", func(w io.Writer) {
-				template.TranslationNode(translationResult).Render(r.Context(), w)
-			})
-		case contextImageUrl := <-imageUrlChan:
-			// TODO: move upsert to translator
-			err := translation.UpdateContextImage(contextImageUrl)
-			if err != nil {
-				fmt.Print(err)
+		select {
+		case contextImageUrl, ok := <-imageUrlChan:
+			if ok {
+				sseClient.SendEvent("contextImage", func(w io.Writer) {
+					template.TranslationContextImage(contextImageUrl).Render(r.Context(), w)
+				})
+			} else {
+				hasSentImage = true
 			}
+		default:
+		}
 
-			sseClient.SendEvent("contextImage", func(w io.Writer) {
-				template.TranslationContextImage(contextImageUrl).Render(r.Context(), w)
-			})
-			imageReturned = true
-		case err := <-imageUrlErrorChan:
-			fmt.Printf("Error generating context image: %v\n", err)
-			moreTranslations = false
-			imageReturned = true
-		case err := <-translationErrorChan:
-			fmt.Printf("Error generating translation: %v\n", err)
-			moreTranslations = false
-			imageReturned = true
+		select {
+		case imageError := <-imageUrlErrorChan:
+			fmt.Printf("Error with generating image: %s", imageError.Error())
+			return
+		case translationError := <-translationErrorChan:
+			fmt.Printf("Error with generating translation: %s", translationError.Error())
+			return
 		}
 	}
 }
