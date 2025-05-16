@@ -7,7 +7,6 @@ import (
 	"translang/persistence"
 	"translang/server/sse"
 	"translang/template"
-	"translang/translator"
 )
 
 func (client ServerClient) TranslationsRoute(w http.ResponseWriter, r *http.Request) {
@@ -94,84 +93,37 @@ func (client ServerClient) TranslateStreamRoute(w http.ResponseWriter, r *http.R
 	sseClient := sse.NewClient(w, r)
 	defer sseClient.Close()
 
-	imageUrlChan := make(chan string)
-	translationChan := make(chan translator.TranslationResult)
-	errorChan := make(chan error)
-
-	go func() {
-		contextImageUrl, err := translation.GetContextImageUrl()
-		if err == nil {
-			imageUrlChan <- contextImageUrl
-		} else {
-			client.translator.ProcessContextImage(translation.GetFigmaSourceUrl(), imageUrlChan, errorChan)
-		}
-	}()
-
-	go func() {
-		defer close(translationChan)
-
-		nodes, err := translation.GetAllNodes()
-		if err != nil {
-			errorChan <- err
-			return
-		}
-		if len(nodes) > 0 {
-			for _, node := range nodes {
-				result, err := node.ToPayload()
-				if err != nil {
-					errorChan <- err
-					return
-				}
-
-				var values []translator.TranslationValue
-				for _, value := range result.Values {
-					values = append(values, translator.TranslationValue{
-						Language: value.Language,
-						Text:     value.Text,
-					})
-				}
-				translationChan <- translator.TranslationResult{
-					NodeId:  result.NodeId,
-					Source:  result.Source,
-					CopyKey: result.CopyKey,
-					Values:  values,
-				}
-			}
-			return
-		}
-		client.translator.ProcessTextTranslations(translation.GetFigmaSourceUrl(), translationChan, errorChan, client.persistence)
-	}()
+	imageUrlChan, imageUrlErrorChan := client.translator.ProcessContextImage(translation)
+	translationChan, translationErrorChan := client.translator.ProcessTextTranslations(translation)
 
 	moreTranslations := true
 	imageReturned := false
 	for moreTranslations || !imageReturned {
 		select {
-		case translationResult, done := <-translationChan:
-			if done {
-				var values []persistence.ValuePayload
-				for _, value := range translationResult.Values {
-					values = append(values, persistence.ValuePayload{
-						Language: value.Language,
-						Text:     value.Text,
-					})
-				}
-				_, err := translation.UpsertNode(persistence.NodePayload{
-					NodeId:  translationResult.NodeId,
-					Source:  translationResult.Source,
-					CopyKey: translationResult.CopyKey,
-					Values:  values,
+		case translationResult := <-translationChan:
+			// TODO: move upsert to translator
+			var values []persistence.ValuePayload
+			for _, value := range translationResult.Values {
+				values = append(values, persistence.ValuePayload{
+					Language: value.Language,
+					Text:     value.Text,
 				})
-				if err != nil {
-					fmt.Print(err)
-				}
-
-				sseClient.SendEvent("translation", func(w io.Writer) {
-					template.TranslationNode(translationResult).Render(r.Context(), w)
-				})
-			} else {
-				moreTranslations = false
 			}
+			_, err := translation.UpsertNode(persistence.NodePayload{
+				NodeId:  translationResult.NodeId,
+				Source:  translationResult.Source,
+				CopyKey: translationResult.CopyKey,
+				Values:  values,
+			})
+			if err != nil {
+				fmt.Print(err)
+			}
+
+			sseClient.SendEvent("translation", func(w io.Writer) {
+				template.TranslationNode(translationResult).Render(r.Context(), w)
+			})
 		case contextImageUrl := <-imageUrlChan:
+			// TODO: move upsert to translator
 			err := translation.UpdateContextImage(contextImageUrl)
 			if err != nil {
 				fmt.Print(err)
@@ -181,8 +133,12 @@ func (client ServerClient) TranslateStreamRoute(w http.ResponseWriter, r *http.R
 				template.TranslationContextImage(contextImageUrl).Render(r.Context(), w)
 			})
 			imageReturned = true
-		case err := <-errorChan:
-			fmt.Printf("Error generating translations: %v\n", err)
+		case err := <-imageUrlErrorChan:
+			fmt.Printf("Error generating context image: %v\n", err)
+			moreTranslations = false
+			imageReturned = true
+		case err := <-translationErrorChan:
+			fmt.Printf("Error generating translation: %v\n", err)
 			moreTranslations = false
 			imageReturned = true
 		}

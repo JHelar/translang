@@ -8,9 +8,9 @@ import (
 )
 
 type TranslatorClient struct {
-	figmaClient       figma.FigmaClient
-	openaiClient      openai.OpenaiClient
-	persistenceClient persistence.PersistenceClient
+	figmaClient  figma.FigmaClient
+	openaiClient openai.OpenaiClient
+	persistence  persistence.PersistenceClient
 }
 
 func NewClient(figmaPAT string, openaiAPIKey string) TranslatorClient {
@@ -19,8 +19,8 @@ func NewClient(figmaPAT string, openaiAPIKey string) TranslatorClient {
 	persistenceClient := db.NewClient()
 
 	return TranslatorClient{
-		figmaClient:       figmaClient,
-		openaiClient:      openaiClient,
-		persistenceClient: persistenceClient,
+		figmaClient:  figmaClient,
+		openaiClient: openaiClient,
+		persistence:  persistenceClient,
 	}
 }

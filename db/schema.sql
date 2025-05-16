@@ -8,9 +8,13 @@ create table if not exists "translation" (
 create table if not exists "translation_node" (
     [id] integer not null primary key autoincrement,
     [figma_text_node_id] text not null unique,
-    [translation_id] integer not null references [translation]([id]) on delete cascade,
     [source_text] text not null,
     [copy_key] text not null unique
+);
+create table if not exists "translation_to_translation_node" (
+    [translation_id] integer not null references [translation]([id]) on delete cascade,
+    [translation_node_id] integer not null references [translation_node]([id]) on delete cascade,
+    primary key (translation_node_id, translation_id)
 );
 create table if not exists "translation_node_value" (
     [translation_node_id] integer not null references [translation_node]([id]) on delete cascade,
