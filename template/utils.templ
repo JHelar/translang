@@ -5,7 +5,9 @@ type ToastProps struct {
 }
 
 templ ToastSuccess(props ToastProps) {
-	<div hx-swap-oob="afterbegin:#toasts" hx-trigger="load delay:1000ms" hx-swap="delete" class="alert alert-success">
-		<span>{ props.Message }</span>
+	<div hx-swap-oob="afterbegin:#toasts">
+		<div hx-trigger="load delay:1000ms" hx-swap="delete" class="alert alert-success">
+			<span>{ props.Message }</span>
+		</div>
 	</div>
 }

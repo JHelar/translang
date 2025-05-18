@@ -65,10 +65,16 @@ const DELETE_TRANSLATION_QUERY = `
 delete from translation where id=$1
 `
 
+const DELETE_TRANSLATION_NODE_CONNECTION = `
+delete from translation_to_translation_node where translation_id=$1
+`
+
 func DeleteTranslation(translationID int64, client db.DBClient) error {
 	tx := client.DB.MustBegin()
-	// TODO: Ensure to delete the node -> translation connection
+
 	tx.MustExec(DELETE_TRANSLATION_QUERY, translationID)
+	tx.MustExec(DELETE_TRANSLATION_NODE_CONNECTION, translationID)
+
 	if err := tx.Commit(); err != nil {
 		return err
 	}
