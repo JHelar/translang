@@ -67,6 +67,7 @@ delete from translation where id=$1
 
 func DeleteTranslation(translationID int64, client db.DBClient) error {
 	tx := client.DB.MustBegin()
+	// TODO: Ensure to delete the node -> translation connection
 	tx.MustExec(DELETE_TRANSLATION_QUERY, translationID)
 	if err := tx.Commit(); err != nil {
 		return err
@@ -111,6 +112,18 @@ func GetTranslationNodeBySourceText(sourceText string, client *db.DBClient) (Tra
 	return node, nil
 }
 
+const GET_TRANSLATION_NODE_BY_ID = `
+select id,figma_text_node_id,source_text,copy_key from translation_node where id=$1
+`
+
+func GetNodeByID(nodeID int64, client *db.DBClient) (TranslationNode, error) {
+	node := TranslationNode{}
+	if err := client.DB.Get(&node, GET_TRANSLATION_NODE_BY_ID, nodeID); err != nil {
+		return TranslationNode{}, err
+	}
+	return node, nil
+}
+
 const UPDATE_CONTEXT_IMAGE = `
 update translation
 	set context_image_url=?
@@ -147,7 +160,7 @@ func (translation *Translation) UpsertNode(figmaTextNodeId string, sourceText st
 	translationNode := TranslationNode{}
 
 	tx := client.DB.MustBegin()
-	if err := tx.Get(&translationNode, UPSERT_TRANSLATION_NODE, figmaTextNodeId, translation.ID, sourceText, copyKey); err != nil {
+	if err := tx.Get(&translationNode, UPSERT_TRANSLATION_NODE, figmaTextNodeId, sourceText, copyKey); err != nil {
 		tx.Rollback()
 		return TranslationNode{}, err
 	}
@@ -166,10 +179,9 @@ func (translation *Translation) UpsertNode(figmaTextNodeId string, sourceText st
 const SELECT_ALL_NODES_FOR_TRANSLATION = `
 select id,figma_text_node_id,source_text,copy_key,created_at
 	from translation_node
-	where id=(select translation_node_id 
-		from translation_to_translation_node
-		where translation_id=$1
-	)
+	left join translation_to_translation_node
+		on translation_to_translation_node.translation_node_id=translation_node.id
+	where translation_to_translation_node.translation_id=$1
 `
 
 func (translation *Translation) Nodes(client *db.DBClient) ([]TranslationNode, error) {
@@ -202,10 +214,9 @@ func (node *TranslationNode) UpsertValue(copyLanguage string, copyText string, c
 const SELECT_ALL_TRANSLATIONS_FOR_NODE = `
 select id,figma_source_url,context_image_url,created_at,synced_at 
 	from translation
-	where id=(select translation_id 
-		from translation_to_translation_node 
-		where translation_node_id=$1
-	)
+	left join translation_to_translation_node
+		on translation_to_translation_node.translation_id=translation.id
+	where translation_to_translation_node.translation_node_id=$1
 `
 
 func (node *TranslationNode) GetTranslations(client *db.DBClient) ([]Translation, error) {

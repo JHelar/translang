@@ -10,7 +10,7 @@ create table if not exists "translation_node" (
     [figma_text_node_id] text not null unique,
     [source_text] text not null,
     [copy_key] text not null unique,
-    [created_at] timestamp not null default current_timestamp,
+    [created_at] timestamp not null default current_timestamp
 );
 create table if not exists "translation_to_translation_node" (
     [translation_id] integer not null references [translation]([id]) on delete cascade,

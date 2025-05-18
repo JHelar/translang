@@ -6,11 +6,11 @@ type TranslationModalProps struct {
 
 templ TranslationModal(props TranslationModalProps) {
 	<div hx-swap-oob="beforebegin:#translate">
-		<dialog id="translation_modal" class="modal" hx-ext="sse" hx-get="/translate" hx-select="body" hx-swap="outerHTML" hx-trigger="close delay:250ms" sse-connect={ props.SSEUrl } sse-close="close" hx-on:htmx:load="this.showModal()">
+		<dialog id="translation_modal" class="modal" hx-ext="sse" hx-get="/translate" hx-select-oob="#all_translations" hx-swap="none" hx-trigger="close delay:250ms" sse-connect={ props.SSEUrl } sse-close="close" hx-on:htmx:load="this.showModal()">
 			<form method="dialog" class="modal-backdrop">
 				<button>close</button>
 			</form>
-			<div class="modal-box flex flex-col items-center max-w-4xl">
+			<div class="modal-box flex flex-col items-center w-full max-w-4xl">
 				<form method="dialog">
 					<button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
 				</form>
@@ -108,7 +108,7 @@ templ Translate(props TranslateProps) {
 							<th></th>
 						</tr>
 					</thead>
-					<tbody>
+					<tbody id="all_translations">
 						for _, translation := range props.Rows {
 							@TranslationRow(translation)
 						}

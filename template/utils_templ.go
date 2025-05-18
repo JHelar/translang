@@ -8,11 +8,11 @@ package template
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-type BaseProps struct {
-	Title string
+type ToastProps struct {
+	Message string
 }
 
-func Base(props BaseProps) templ.Component {
+func ToastSuccess(props ToastProps) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -33,28 +33,20 @@ func Base(props BaseProps) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<html><head><title>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div hx-swap-oob=\"afterbegin:#toasts\" hx-trigger=\"load delay:1000ms\" hx-swap=\"delete\" class=\"alert alert-success\"><span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
-		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(props.Title)
+		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(props.Message)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `template/base.templ`, Line: 10, Col: 23}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `template/utils.templ`, Line: 9, Col: 23}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</title><link href=\"/public/output.css\" rel=\"stylesheet\"><script src=\"https://unpkg.com/htmx.org@2.0.4\" crossorigin=\"anonymous\"></script><script src=\"https://unpkg.com/htmx-ext-sse@2.2.2\" crossorigin=\"anonymous\"></script></head><body>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templ_7745c5c3_Var1.Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"toast\" id=\"toasts\"></div></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</span></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

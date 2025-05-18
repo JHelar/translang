@@ -83,3 +83,20 @@ func (client DBPersistenceClient) GetNodeFromSourceText(sourceText string) (pers
 		node:     node,
 	}, nil
 }
+
+func (client DBPersistenceClient) GetNodeByID(nodeIDString string) (persistence.PersistenceNode, error) {
+	nodeID, err := strconv.ParseInt(nodeIDString, 10, 64)
+	if err != nil {
+		return DBPersistenceNode{}, err
+	}
+
+	node, err := dto.GetNodeByID(nodeID, &client.DBClient)
+	if err != nil {
+		return DBPersistenceNode{}, err
+	}
+
+	return DBPersistenceNode{
+		DBClient: &client.DBClient,
+		node:     node,
+	}, nil
+}

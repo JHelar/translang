@@ -9,6 +9,8 @@ type ValuePayload struct {
 }
 
 type PersistenceNode interface {
+	GetID() string
+
 	UpsertValue(payload ValuePayload) (PersistenceValue, error)
 
 	ToPayload() (NodePayload, error)
@@ -41,4 +43,5 @@ type PersistenceClient interface {
 	DeleteTranslationByID(translationID string) error
 
 	GetNodeFromSourceText(sourceText string) (PersistenceNode, error)
+	GetNodeByID(nodeID string) (PersistenceNode, error)
 }

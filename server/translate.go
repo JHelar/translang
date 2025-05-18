@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"translang/persistence"
 	"translang/server/sse"
 	"translang/template"
+	"translang/translator"
 )
 
 func (client ServerClient) TranslationsRoute(w http.ResponseWriter, r *http.Request) {
@@ -98,28 +100,49 @@ func (client ServerClient) TranslateStreamRoute(w http.ResponseWriter, r *http.R
 	hasSentTranslations := false
 	hasSentImage := false
 	for !hasSentTranslations || !hasSentImage {
-		select {
-		case translationResult, ok := <-translationChan:
-			if ok {
-				sseClient.SendEvent("translation", func(w io.Writer) {
-					template.TranslationNode(translationResult).Render(r.Context(), w)
-				})
-			} else {
-				hasSentTranslations = true
+		if !hasSentTranslations {
+			select {
+			case translationResult, ok := <-translationChan:
+				if ok {
+					sseClient.SendEvent("translation", func(w io.Writer) {
+						props := template.TranslationNodeProps{
+							TranslationResult: translationResult,
+						}
+						for _, value := range translationResult.Values {
+							updateValueURL, err := client.router.Get("updateNodeValue").URL("id", translationResult.ID, "language", value.Language)
+							if err != nil {
+								fmt.Printf("Error generating URL: %s\n", err.Error())
+							}
+
+							props.Values = append(props.Values, struct {
+								translator.TranslationValue
+								UpdateValueURL string
+							}{
+								TranslationValue: value,
+								UpdateValueURL:   updateValueURL.String(),
+							})
+						}
+						template.TranslationNode(props).Render(r.Context(), w)
+					})
+				} else {
+					hasSentTranslations = true
+				}
+			default:
 			}
-		default:
 		}
 
-		select {
-		case contextImageUrl, ok := <-imageUrlChan:
-			if ok {
-				sseClient.SendEvent("contextImage", func(w io.Writer) {
-					template.TranslationContextImage(contextImageUrl).Render(r.Context(), w)
-				})
-			} else {
-				hasSentImage = true
+		if !hasSentImage {
+			select {
+			case contextImageUrl, ok := <-imageUrlChan:
+				if ok {
+					sseClient.SendEvent("contextImage", func(w io.Writer) {
+						template.TranslationContextImage(contextImageUrl).Render(r.Context(), w)
+					})
+				} else {
+					hasSentImage = true
+				}
+			default:
 			}
-		default:
 		}
 
 		select {
@@ -129,6 +152,27 @@ func (client ServerClient) TranslateStreamRoute(w http.ResponseWriter, r *http.R
 		case translationError := <-translationErrorChan:
 			fmt.Printf("Error with generating translation: %s", translationError.Error())
 			return
+		default:
 		}
 	}
+}
+
+func (client ServerClient) UpdateTranslationValue(w http.ResponseWriter, r *http.Request) {
+	node, err := client.persistence.GetNodeByID(r.Form.Get("id"))
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error getting translation node: %v\n", err), 404)
+		return
+	}
+
+	if _, err := node.UpsertValue(persistence.ValuePayload{
+		Language: r.Form.Get("language"),
+		Text:     r.Form.Get("text"),
+	}); err != nil {
+		http.Error(w, fmt.Sprintf("Error updating node value: %v\n", err), 500)
+		return
+	}
+
+	template.ToastSuccess(template.ToastProps{
+		Message: "Updated translation",
+	}).Render(r.Context(), w)
 }

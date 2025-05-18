@@ -10,6 +10,7 @@ type TranslationValue struct {
 }
 
 type TranslationResult struct {
+	ID      string             `json:"id"`
 	NodeId  string             `json:"nodeId"`
 	Source  string             `json:"source"`
 	CopyKey string             `json:"copyKey"`
@@ -23,6 +24,7 @@ func nodeToTranslationResult(node persistence.PersistenceNode) (TranslationResul
 	}
 
 	result := TranslationResult{
+		ID:      node.GetID(),
 		NodeId:  payload.NodeId,
 		Source:  payload.Source,
 		CopyKey: payload.CopyKey,
@@ -67,6 +69,8 @@ func (client TranslatorClient) ProcessContextImage(translation persistence.Persi
 
 	go func() {
 		imageUrl, err := translation.GetContextImageUrl()
+		defer close(imageUrlChan)
+
 		if err == nil {
 			imageUrlChan <- imageUrl
 			return
@@ -106,6 +110,7 @@ func (client TranslatorClient) ProcessTextTranslations(translation persistence.P
 
 				translationResult <- result
 			}
+			return
 		}
 
 		node, err := client.figmaClient.GetFileNodes(translation.GetFigmaSourceUrl())
@@ -117,26 +122,15 @@ func (client TranslatorClient) ProcessTextTranslations(translation persistence.P
 		textNodes := node.FindAllNodesOfType("TEXT")
 		for _, textNode := range textNodes {
 			node, err := client.persistence.GetNodeFromSourceText(textNode.Characters)
-			var result TranslationResult
-
+			var payload persistence.NodePayload
 			if err == nil {
-				payload, _ := node.ToPayload()
-				result.NodeId = payload.NodeId
-				result.Source = payload.Source
-				result.CopyKey = payload.CopyKey
-
-				for _, value := range payload.Values {
-					result.Values = append(result.Values, TranslationValue{
-						Language: value.Language,
-						Text:     value.Text,
-					})
-				}
+				payload, _ = node.ToPayload()
 			} else {
 				translation := client.openaiClient.Translate(textNode.Characters)
-				result.NodeId = textNode.ID
-				result.Source = translation.Source
-				result.CopyKey = translation.CopyKey
-				result.Values = []TranslationValue{
+				payload.NodeId = textNode.ID
+				payload.Source = translation.Source
+				payload.CopyKey = translation.CopyKey
+				payload.Values = []persistence.ValuePayload{
 					{
 						Language: "sv",
 						Text:     translation.Swedish,
@@ -152,10 +146,32 @@ func (client TranslatorClient) ProcessTextTranslations(translation persistence.P
 				}
 			}
 
-			translationResult <- result
-			if _, err := translation.UpsertNode(translationResultToNodePayload(result)); err != nil {
+			node, err = translation.UpsertNode(payload)
+			if err != nil {
 				errorChan <- err
+				return
 			}
+
+			nodePayload, err := node.ToPayload()
+			if err != nil {
+				errorChan <- err
+				return
+			}
+
+			result := TranslationResult{
+				ID:      node.GetID(),
+				NodeId:  nodePayload.NodeId,
+				Source:  nodePayload.Source,
+				CopyKey: nodePayload.CopyKey,
+			}
+
+			for _, value := range nodePayload.Values {
+				result.Values = append(result.Values, TranslationValue{
+					Language: value.Language,
+					Text:     value.Text,
+				})
+			}
+			translationResult <- result
 		}
 	}()
 

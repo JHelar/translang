@@ -1,6 +1,7 @@
 package template
 
 import "translang/translator"
+import "fmt"
 
 templ TranslationContextImage(imageUrl string) {
 	<figure>
@@ -11,27 +12,48 @@ templ TranslationContextImage(imageUrl string) {
 	</figure>
 }
 
-templ TranslationNode(translation translator.TranslationResult) {
-	<div>
-		<h2 class="text-xl mb-2">{ translation.CopyKey }</h2>
-		<p class="mb-4">{ translation.Source }</p>
-		<div class="overflow-x-auto">
-			<table class="table">
-				<thead>
-					<tr>
-						<th class="w-44">Language</th>
-						<th>Translation</th>
-					</tr>
-				</thead>
-				<tbody>
-					for _, value := range translation.Values {
+type TranslationNodeProps struct {
+	translator.TranslationResult
+	Values []struct {
+		translator.TranslationValue
+		UpdateValueURL string
+	}
+}
+
+templ TranslationNode(translation TranslationNodeProps) {
+	<div class="collapse collapse-arrow bg-base-100 border border-base-300 w-full">
+		<input type="radio" name="translation-node"/>
+		<div class="collapse-title">
+			<h2 class="text-xl mb-2">{ translation.CopyKey }</h2>
+			<p class="mb-4">{ translation.Source }</p>
+		</div>
+		<div class="collapse-content">
+			<div class="overflow-x-auto">
+				<table class="table">
+					<thead>
 						<tr>
-							<th class="font-normal w-44">{ value.Language }</th>
-							<th class="font-normal">{ value.Text }</th>
+							<th class="w-44">Language</th>
+							<th>Translation</th>
+							<th></th>
 						</tr>
-					}
-				</tbody>
-			</table>
+					</thead>
+					<tbody>
+						for i, value := range translation.Values {
+							<tr>
+								<th class="font-normal w-44">{ value.Language }</th>
+								<th>
+									<form id={ fmt.Sprintf("update-%d", i) } hx-patch={ value.UpdateValueURL } hx-swap="none">
+										<textarea name="text" minlength="1" class="font-normal textarea" placeholder="Enter translation" lang={ value.Language } required>{ value.Text }</textarea>
+									</form>
+								</th>
+								<th>
+									<button class="btn btn-soft btn-primary" form={ fmt.Sprintf("update-%d", i) }>Save</button>
+								</th>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
 		</div>
 	</div>
 }

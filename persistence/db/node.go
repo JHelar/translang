@@ -1,6 +1,7 @@
 package db
 
 import (
+	"strconv"
 	"translang/db"
 	"translang/dto"
 	"translang/persistence"
@@ -43,4 +44,8 @@ func (client DBPersistenceNode) ToPayload() (persistence.NodePayload, error) {
 		CopyKey: client.node.CopyKey,
 		Values:  valuesPayload,
 	}, nil
+}
+
+func (client DBPersistenceNode) GetID() string {
+	return strconv.FormatInt(client.node.ID, 10)
 }
