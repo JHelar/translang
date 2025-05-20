@@ -63,6 +63,23 @@ func (client DBPersistenceClient) GetAllTranslations() ([]persistence.Persistenc
 	return persistenceTranslations, nil
 }
 
+func (client DBPersistenceClient) GetAllNodes() ([]persistence.PersistenceNode, error) {
+	nodes, err := dto.GetAllNodes(&client.DBClient)
+	if err != nil {
+		return nil, err
+	}
+
+	var persistenceNodes []persistence.PersistenceNode
+	for _, node := range nodes {
+		persistenceNodes = append(persistenceNodes, DBPersistenceNode{
+			DBClient: &client.DBClient,
+			node:     node,
+		})
+	}
+
+	return persistenceNodes, nil
+}
+
 func (client DBPersistenceClient) DeleteTranslationByID(translationIDString string) error {
 	translationID, err := strconv.ParseInt(translationIDString, 10, 64)
 	if err != nil {

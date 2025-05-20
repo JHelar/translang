@@ -39,7 +39,6 @@ func (client DBPersistenceNode) ToPayload() (persistence.NodePayload, error) {
 	}
 
 	return persistence.NodePayload{
-		NodeId:  client.node.FigmaTextNodeId,
 		Source:  client.node.SourceText,
 		CopyKey: client.node.CopyKey,
 		Values:  valuesPayload,

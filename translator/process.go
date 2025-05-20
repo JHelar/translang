@@ -17,7 +17,7 @@ type TranslationResult struct {
 	Values  []TranslationValue `json:"values"`
 }
 
-func nodeToTranslationResult(node persistence.PersistenceNode) (TranslationResult, error) {
+func nodeToTranslationResult(translation persistence.PersistenceTranslation, node persistence.PersistenceNode) (TranslationResult, error) {
 	payload, err := node.ToPayload()
 	if err != nil {
 		return TranslationResult{}, err
@@ -25,7 +25,6 @@ func nodeToTranslationResult(node persistence.PersistenceNode) (TranslationResul
 
 	result := TranslationResult{
 		ID:      node.GetID(),
-		NodeId:  payload.NodeId,
 		Source:  payload.Source,
 		CopyKey: payload.CopyKey,
 	}
@@ -50,7 +49,6 @@ func translationResultToNodePayload(result TranslationResult) persistence.NodePa
 	}
 
 	return persistence.NodePayload{
-		NodeId:  result.NodeId,
 		Source:  result.Source,
 		CopyKey: result.CopyKey,
 		Values:  values,
@@ -102,12 +100,11 @@ func (client TranslatorClient) ProcessTextTranslations(translation persistence.P
 
 		if err == nil && len(nodes) > 0 {
 			for _, node := range nodes {
-				result, err := nodeToTranslationResult(node)
+				result, err := nodeToTranslationResult(translation, node)
 				if err != nil {
 					errorChan <- err
 					return
 				}
-
 				translationResult <- result
 			}
 			return
@@ -127,7 +124,6 @@ func (client TranslatorClient) ProcessTextTranslations(translation persistence.P
 				payload, _ = node.ToPayload()
 			} else {
 				translation := client.openaiClient.Translate(textNode.Characters)
-				payload.NodeId = textNode.ID
 				payload.Source = translation.Source
 				payload.CopyKey = translation.CopyKey
 				payload.Values = []persistence.ValuePayload{
@@ -146,7 +142,7 @@ func (client TranslatorClient) ProcessTextTranslations(translation persistence.P
 				}
 			}
 
-			node, err = translation.UpsertNode(payload)
+			node, err = translation.UpsertNode(textNode.ID, payload)
 			if err != nil {
 				errorChan <- err
 				return
@@ -160,7 +156,7 @@ func (client TranslatorClient) ProcessTextTranslations(translation persistence.P
 
 			result := TranslationResult{
 				ID:      node.GetID(),
-				NodeId:  nodePayload.NodeId,
+				NodeId:  textNode.ID,
 				Source:  nodePayload.Source,
 				CopyKey: nodePayload.CopyKey,
 			}

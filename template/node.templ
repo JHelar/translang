@@ -1,0 +1,50 @@
+package template
+
+type NodeRowProp struct {
+	DetailsUrl string
+	SourceText string
+	CopyKey    string
+}
+
+templ NodeRow(props NodeRowProp) {
+	<tr>
+		<td>
+			{ props.CopyKey }
+		</td>
+		<td>
+			{ props.SourceText }
+		</td>
+		<td>
+			<a class="btn btn-soft btn-primary" hx-swap="none" hx-get={ props.DetailsUrl } href={ templ.URL(props.DetailsUrl) }>Details</a>
+		</td>
+	</tr>
+}
+
+type NodesProp struct {
+	Nodes []NodeRowProp
+}
+
+templ Nodes(props NodesProp) {
+	@Base(BaseProps{
+		Title: "Translang - Nodes",
+	}) {
+		<div id="nodes">
+			<div class="overflow-x-auto bg-base-200">
+				<table class="table">
+					<thead>
+						<tr>
+							<th>Key</th>
+							<th>Source</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody id="all_nodes">
+						for _, node := range props.Nodes {
+							@NodeRow(node)
+						}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	}
+}

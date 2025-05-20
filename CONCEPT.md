@@ -48,5 +48,10 @@ For easier handling of struct parsing
 https://github.com/jmoiron/sqlx
 
 ### TODO
-- Move DB Client to TranslatorClient
-- Add a one to many releation for translation node by adding a translation_to_translation_node table connecting many transaltion to a single translation node. Allows a translation node to be updated and affect many translations
+- Move DB Client to TranslatorClient ✅
+- Add a one to many releation for translation node by adding a translation_to_translation_node table connecting many transaltion to a single translation node. Allows a translation node to be updated and affect many translations ✅
+- Move FigmaTextNodeID reference to connection table ✅
+- Connect text nodes with existing translation_nodes otherwise create new node ✅
+- Add nodes overview page /node ✅
+- Add node details page
+- Add FigmaWebhook connection to react and update node values when connected figma designs are updated

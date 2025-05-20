@@ -34,6 +34,8 @@ func NewClient(translator translator.TranslatorClient, persistence persistence.P
 	client.router.HandleFunc("/translate/{id}", client.DeleteTranslationRoute).Methods(http.MethodDelete).Name("deleteTranslation")
 	client.router.HandleFunc("/translate/{id}/stream", client.TranslateStreamRoute).Methods(http.MethodGet).Name("streamTranslation")
 
+	client.router.HandleFunc("/node", client.NodesRoute).Methods(http.MethodGet).Name("listNodes")
+	client.router.HandleFunc("/node/{id}", client.NodeDetailsRoute).Methods(http.MethodGet).Name("getNode")
 	client.router.HandleFunc("/node/{id}/{language}", client.UpdateTranslationValue).Methods(http.MethodPatch).Name("updateNodeValue")
 
 	client.server = &http.Server{

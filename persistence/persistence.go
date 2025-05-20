@@ -17,7 +17,6 @@ type PersistenceNode interface {
 }
 
 type NodePayload struct {
-	NodeId  string
 	Source  string
 	CopyKey string
 	Values  []ValuePayload
@@ -29,7 +28,7 @@ type PersistenceTranslation interface {
 	GetID() string
 
 	UpdateContextImage(contextImageUrl string) error
-	UpsertNode(payload NodePayload) (PersistenceNode, error)
+	UpsertNode(figmaTextNodeID string, payload NodePayload) (PersistenceNode, error)
 
 	GetAllNodes() ([]PersistenceNode, error)
 }
@@ -44,4 +43,6 @@ type PersistenceClient interface {
 
 	GetNodeFromSourceText(sourceText string) (PersistenceNode, error)
 	GetNodeByID(nodeID string) (PersistenceNode, error)
+
+	GetAllNodes() ([]PersistenceNode, error)
 }

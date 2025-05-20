@@ -4,25 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
-	"net/url"
 	"strings"
 )
-
-const API_PATH = "https://api.figma.com"
-
-type FigmaClient struct {
-	token string
-}
-
-type FigmaUrl struct {
-	FileType string
-	FileKey  string
-	FileName string
-	Query    url.Values
-	RawUrl   string
-}
 
 type FigmaNode struct {
 	ID         string      `json:"id"`
@@ -87,45 +71,6 @@ func (rootNode *FigmaNode) FindAllNodesOfType(nodeType string) []FigmaNodePath {
 	}
 
 	return targetNodes
-}
-
-func NewClient(figmaPAT string) FigmaClient {
-	return FigmaClient{
-		token: figmaPAT,
-	}
-}
-
-func (client *FigmaClient) request(path string) *http.Request {
-	apiPath := fmt.Sprintf("%v%v", API_PATH, path)
-	req, err := http.NewRequest(http.MethodGet, apiPath, http.NoBody)
-
-	if err != nil {
-		log.Fatalf("Failed to create request: '%v' %v", path, err)
-	}
-
-	req.Header.Add("X-Figma-Token", client.token)
-
-	return req
-}
-
-func parseFigmaFileUrl(figmaFileUrl string) FigmaUrl {
-	url, err := url.Parse(figmaFileUrl)
-	if err != nil {
-		log.Fatal("Failed to parse url", err)
-	}
-
-	pathParts := strings.Split(url.Path, "/")
-	if len(pathParts) < 3+1 {
-		log.Fatalf("Invalid figmaFileUrl: '%v'", figmaFileUrl)
-	}
-
-	return FigmaUrl{
-		FileType: pathParts[1],
-		FileKey:  pathParts[2],
-		FileName: pathParts[3],
-		Query:    url.Query(),
-		RawUrl:   figmaFileUrl,
-	}
 }
 
 func (client *FigmaClient) GetFileNodes(figmaFileUrl string) (FigmaNode, error) {

@@ -17,8 +17,8 @@ func (client DBPersistenceTranslation) UpdateContextImage(contextImageUrl string
 	return client.translation.UpdateContextImage(contextImageUrl, client.DBClient)
 }
 
-func (client DBPersistenceTranslation) UpsertNode(payload persistence.NodePayload) (persistence.PersistenceNode, error) {
-	node, err := client.translation.UpsertNode(payload.NodeId, payload.Source, payload.CopyKey, client.DBClient)
+func (client DBPersistenceTranslation) UpsertNode(figmaTextNodeID string, payload persistence.NodePayload) (persistence.PersistenceNode, error) {
+	node, err := client.translation.UpsertNode(figmaTextNodeID, payload.Source, payload.CopyKey, client.DBClient)
 	if err != nil {
 		return DBPersistenceNode{}, err
 	}

@@ -15,11 +15,10 @@ type Translation struct {
 }
 
 type TranslationNode struct {
-	ID              int64     `db:"id"`
-	FigmaTextNodeId string    `db:"figma_text_node_id"`
-	SourceText      string    `db:"source_text"`
-	CopyKey         string    `db:"copy_key"`
-	CreatedAt       time.Time `db:"created_at"`
+	ID         int64     `db:"id"`
+	SourceText string    `db:"source_text"`
+	CopyKey    string    `db:"copy_key"`
+	CreatedAt  time.Time `db:"created_at"`
 }
 
 type TranslationNodeValue struct {
@@ -106,7 +105,7 @@ func GetTranslationByFigmaSourceUrl(figmaSourceUrl string, client db.DBClient) (
 }
 
 const GET_TRANSLATION_NODE_BY_SOURCE_TEXT = `
-select id,figma_text_node_id,source_text,copy_key from translation_node where source_text=$1
+select id,source_text,copy_key from translation_node where source_text=$1
 `
 
 func GetTranslationNodeBySourceText(sourceText string, client *db.DBClient) (TranslationNode, error) {
@@ -118,8 +117,20 @@ func GetTranslationNodeBySourceText(sourceText string, client *db.DBClient) (Tra
 	return node, nil
 }
 
+const GAT_ALL_NODES = `
+select id,source_text,copy_key from translation_node
+`
+
+func GetAllNodes(client *db.DBClient) ([]TranslationNode, error) {
+	nodes := []TranslationNode{}
+	if err := client.DB.Select(&nodes, GAT_ALL_NODES); err != nil {
+		return nil, err
+	}
+	return nodes, nil
+}
+
 const GET_TRANSLATION_NODE_BY_ID = `
-select id,figma_text_node_id,source_text,copy_key from translation_node where id=$1
+select id,source_text,copy_key from translation_node where id=$1
 `
 
 func GetNodeByID(nodeID int64, client *db.DBClient) (TranslationNode, error) {
@@ -152,25 +163,25 @@ func (translation *Translation) UpdateContextImage(contextImageUrl string, clien
 }
 
 const UPSERT_TRANSLATION_NODE = `
-insert into translation_node (figma_text_node_id,source_text,copy_key) values (?,?,?)
-	on conflict (figma_text_node_id) do update set source_text=excluded.source_text,copy_key=excluded.copy_key
-	returning id,figma_text_node_id,source_text,copy_key,created_at
+insert into translation_node (source_text,copy_key) values (?,?)
+	on conflict (copy_key) do update set source_text=excluded.source_text
+	returning id,source_text,copy_key,created_at
 `
 
 const UPSERT_TRANSLATION_NODE_CONNECTION = `
-insert into translation_to_translation_node (translation_id,translation_node_id) values (?,?)
-	on conflict (translation_id,translation_node_id) do nothing
+insert into translation_to_translation_node (translation_id,translation_node_id,figma_text_node_id) values (?,?,?)
+	on conflict (translation_id,translation_node_id) do update set figma_text_node_id=excluded.figma_text_node_id
 `
 
 func (translation *Translation) UpsertNode(figmaTextNodeId string, sourceText string, copyKey string, client *db.DBClient) (TranslationNode, error) {
 	translationNode := TranslationNode{}
 
 	tx := client.DB.MustBegin()
-	if err := tx.Get(&translationNode, UPSERT_TRANSLATION_NODE, figmaTextNodeId, sourceText, copyKey); err != nil {
+	if err := tx.Get(&translationNode, UPSERT_TRANSLATION_NODE, sourceText, copyKey); err != nil {
 		tx.Rollback()
 		return TranslationNode{}, err
 	}
-	if _, err := tx.Exec(UPSERT_TRANSLATION_NODE_CONNECTION, translation.ID, translationNode.ID); err != nil {
+	if _, err := tx.Exec(UPSERT_TRANSLATION_NODE_CONNECTION, translation.ID, translationNode.ID, figmaTextNodeId); err != nil {
 		tx.Rollback()
 		return TranslationNode{}, err
 	}
@@ -183,7 +194,7 @@ func (translation *Translation) UpsertNode(figmaTextNodeId string, sourceText st
 }
 
 const SELECT_ALL_NODES_FOR_TRANSLATION = `
-select id,figma_text_node_id,source_text,copy_key,created_at
+select id,source_text,copy_key,created_at
 	from translation_node
 	left join translation_to_translation_node
 		on translation_to_translation_node.translation_node_id=translation_node.id
@@ -243,4 +254,22 @@ func (node *TranslationNode) Values(client *db.DBClient) ([]TranslationNodeValue
 		return nil, err
 	}
 	return values, nil
+}
+
+const SELECT_FIGMA_NODE_ID = `
+select figma_node_id from translation_to_translation_node 
+	where translation_id=$1 and translation_node_id=$2
+`
+
+func (node *TranslationNode) GetFigmaNodeID(translationID int64, client *db.DBClient) (string, error) {
+	row, err := client.DB.Query(SELECT_FIGMA_NODE_ID, translationID, node.ID)
+	if err != nil {
+		return "", err
+	}
+
+	var figmaNodeID string
+	if err = row.Scan(&figmaNodeID); err != nil {
+		return "", err
+	}
+	return figmaNodeID, nil
 }
