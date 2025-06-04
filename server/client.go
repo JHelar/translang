@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"time"
+	"translang/figma"
 	"translang/persistence"
 	"translang/translator"
 
@@ -18,7 +19,7 @@ type ServerClient struct {
 	server      *http.Server
 }
 
-func NewClient(translator translator.TranslatorClient, persistence persistence.PersistenceClient) ServerClient {
+func NewClient(translator translator.TranslatorClient, persistence persistence.PersistenceClient, figmaClient figma.FigmaClient, baseUrl string) ServerClient {
 	client := ServerClient{
 		translator:  translator,
 		persistence: persistence,
@@ -38,12 +39,33 @@ func NewClient(translator translator.TranslatorClient, persistence persistence.P
 	client.router.HandleFunc("/node/{id}", client.NodeDetailsRoute).Methods(http.MethodGet).Name("getNode")
 	client.router.HandleFunc("/node/{id}/{language}", client.UpdateTranslationValue).Methods(http.MethodPatch).Name("updateNodeValue")
 
+	client.router.HandleFunc("/internal/figma/event", client.HandleFigmaEvent).Methods(http.MethodPost).Name("figmaWebhook")
+
 	client.server = &http.Server{
 		Handler:      client.router,
 		Addr:         "0.0.0.0:3000",
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
+
+	// Webhook stuff that I cannot test because I am poor
+	// url, _ := client.router.Get("figmaWebhook").URLPath()
+	// baseURL, err := url.Parse(baseUrl)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// url.Scheme = baseURL.Scheme
+	// url.Host = baseURL.Host
+
+	// if err := figmaClient.SetupWebhook(figma.WebhookSetupPayload{
+	// 	EventType: figma.WebhookFileUpdateEventType,
+	// 	Context:   "team",
+	// 	ContextID: figma.DemoTeamID,
+	// 	Endpoint:  url.String(),
+	// 	Passcode:  "Bananas",
+	// }); err != nil {
+	// 	log.Fatal(err)
+	// }
 
 	return client
 }

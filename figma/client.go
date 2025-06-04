@@ -2,6 +2,7 @@ package figma
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 )
@@ -18,9 +19,9 @@ func NewClient(figmaPAT string) FigmaClient {
 	}
 }
 
-func (client *FigmaClient) request(path string) *http.Request {
+func (client *FigmaClient) request(path string, method string, body io.Reader) *http.Request {
 	apiPath := fmt.Sprintf("%v%v", API_PATH, path)
-	req, err := http.NewRequest(http.MethodGet, apiPath, http.NoBody)
+	req, err := http.NewRequest(method, apiPath, body)
 
 	if err != nil {
 		log.Fatalf("Failed to create request: '%v' %v", path, err)

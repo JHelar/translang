@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"translang/persistence"
 	"translang/server/sse"
 	"translang/template"
 	"translang/translator"
@@ -155,24 +154,4 @@ func (client ServerClient) TranslateStreamRoute(w http.ResponseWriter, r *http.R
 		default:
 		}
 	}
-}
-
-func (client ServerClient) UpdateTranslationValue(w http.ResponseWriter, r *http.Request) {
-	node, err := client.persistence.GetNodeByID(r.Form.Get("id"))
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error getting translation node: %v\n", err), 404)
-		return
-	}
-
-	if _, err := node.UpsertValue(persistence.ValuePayload{
-		Language: r.Form.Get("language"),
-		Text:     r.Form.Get("text"),
-	}); err != nil {
-		http.Error(w, fmt.Sprintf("Error updating node value: %v\n", err), 500)
-		return
-	}
-
-	template.ToastSuccess(template.ToastProps{
-		Message: "Updated translation",
-	}).Render(r.Context(), w)
 }

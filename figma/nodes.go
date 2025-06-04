@@ -83,7 +83,7 @@ func (client *FigmaClient) GetFileNodes(figmaFileUrl string) (FigmaNode, error) 
 
 	path := fmt.Sprintf("/v1/files/%v/nodes?ids=%v&depth=5", url.FileKey, nodeId)
 
-	request := client.request(path)
+	request := client.request(path, http.MethodGet, http.NoBody)
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {
 		return FigmaNode{}, fmt.Errorf("failed to get file nodes: '%v' %v", path, err)
@@ -112,7 +112,7 @@ func (client *FigmaClient) GetImage(figmaFileUrl string) (string, error) {
 
 	path := fmt.Sprintf("/v1/images/%v?ids=%v", url.FileKey, nodeId)
 
-	request := client.request(path)
+	request := client.request(path, http.MethodGet, http.NoBody)
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {
 		return "", fmt.Errorf("failed to get image: '%v' %v", path, err)

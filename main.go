@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"translang/figma"
 	"translang/persistence/db"
 	"translang/server"
 	"translang/translator"
@@ -11,7 +12,13 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func getTokens() (string, string) {
+type EnvVariables struct {
+	FIGMA_PAT      string
+	OPENAI_API_KEY string
+	BASE_URL       string
+}
+
+func getEnvVariables() EnvVariables {
 	bytes, err := os.ReadFile(".env")
 	if err != nil {
 		log.Fatal(err)
@@ -19,10 +26,7 @@ func getTokens() (string, string) {
 	environmentsString := string(bytes)
 	environmentsLines := strings.Split(environmentsString, "\n")
 
-	var environments struct {
-		FIGMA_PAT      string
-		OPENAI_API_KEY string
-	}
+	var environments EnvVariables
 
 	for _, line := range environmentsLines {
 		keyVal := strings.Split(line, "=")
@@ -33,6 +37,8 @@ func getTokens() (string, string) {
 			environments.FIGMA_PAT = strings.TrimSpace(keyVal[1])
 		} else if keyVal[0] == "OPENAI_API_KEY" {
 			environments.OPENAI_API_KEY = strings.TrimSpace(keyVal[1])
+		} else if keyVal[0] == "BASE_URL" {
+			environments.BASE_URL = strings.TrimSpace(keyVal[1])
 		}
 	}
 
@@ -44,14 +50,19 @@ func getTokens() (string, string) {
 		log.Fatalf("Missing OPENAI_API_KEY variable")
 	}
 
-	return environments.FIGMA_PAT, environments.OPENAI_API_KEY
+	if environments.BASE_URL == "" {
+		log.Fatalf("Missing BASE_URL variable")
+	}
+
+	return environments
 }
 
 func main() {
-	figmaPAT, openaiAPIKey := getTokens()
+	env := getEnvVariables()
 	dbPersistenceClient := db.NewClient()
-	translator := translator.NewClient(figmaPAT, openaiAPIKey, dbPersistenceClient)
-	serverClient := server.NewClient(translator, dbPersistenceClient)
+	figmaClient := figma.NewClient(env.FIGMA_PAT)
+	translator := translator.NewClient(env.FIGMA_PAT, env.OPENAI_API_KEY, dbPersistenceClient)
+	serverClient := server.NewClient(translator, dbPersistenceClient, figmaClient, env.BASE_URL)
 
 	serverClient.ListenAndServe()
 }
