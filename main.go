@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 	"translang/auth"
+	"translang/db"
 	"translang/figma"
-	"translang/persistence/db"
 	"translang/server"
 	"translang/translator"
 
@@ -62,14 +62,14 @@ func main() {
 	env := getEnvVariables()
 
 	authProvider := auth.NewAuthProvider()
-	dbPersistenceClient := db.NewClient()
+	dbClient := db.NewClient()
 
-	passwordProvider := auth.NewPasswordProvider(&dbPersistenceClient.DBClient)
+	passwordProvider := auth.NewPasswordProvider(&dbClient)
 	authProvider.AddProvider(passwordProvider)
 
 	figmaClient := figma.NewClient(env.FIGMA_PAT)
-	translator := translator.NewClient(env.FIGMA_PAT, env.OPENAI_API_KEY, dbPersistenceClient)
-	serverClient := server.NewClient(translator, dbPersistenceClient, figmaClient, env.BASE_URL)
+	translator := translator.NewClient(env.FIGMA_PAT, env.OPENAI_API_KEY, dbClient)
+	serverClient := server.NewClient(translator, dbClient, figmaClient, env.BASE_URL)
 
 	serverClient.ListenAndServe()
 }

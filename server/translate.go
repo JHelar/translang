@@ -4,13 +4,15 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
+	"translang/dto"
 	"translang/server/sse"
 	"translang/template"
 	"translang/translator"
 )
 
 func (client ServerClient) TranslationsRoute(w http.ResponseWriter, r *http.Request) {
-	translations, err := client.persistence.GetAllTranslations()
+	translations, err := dto.GetAllTranslations(client.db)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error retreiving translation: %v\n", err), 500)
 		return
@@ -18,13 +20,13 @@ func (client ServerClient) TranslationsRoute(w http.ResponseWriter, r *http.Requ
 
 	var rows []template.TranslateRowProps
 	for _, translation := range translations {
-		contextImageUrl, _ := translation.GetContextImageUrl()
-		nodes, _ := translation.GetAllNodes()
-		detailsUrl, _ := client.router.Get("getTranslation").URL("id", translation.GetID())
+		contextImageUrl := translation.ContextImageUrl.String
+		nodes, _ := translation.Nodes(&client.db)
+		detailsUrl, _ := client.router.Get("getTranslation").URL("id", strconv.FormatInt(translation.ID, 10))
 
 		rows = append(rows, template.TranslateRowProps{
 			ContextImageUrl:  contextImageUrl,
-			FigmaSourceUrl:   translation.GetFigmaSourceUrl(),
+			FigmaSourceUrl:   translation.FigmaSourceUrl,
 			TranslationCount: fmt.Sprint(len(nodes)),
 			DetailsUrl:       detailsUrl.String(),
 		})
@@ -47,13 +49,13 @@ func (client ServerClient) CreateTranslationRoute(w http.ResponseWriter, r *http
 		return
 	}
 
-	translation, err := client.persistence.UpsertTranslation(figmaUrl)
+	translation, err := dto.UpsertTranslation(figmaUrl, client.db)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error creating translation: %v\n", err), http.StatusInternalServerError)
 		return
 	}
 
-	sseURL, _ := client.router.Get("streamTranslation").URL("id", translation.GetID())
+	sseURL, _ := client.router.Get("streamTranslation").URL("id", strconv.FormatInt(translation.ID, 10))
 	props := template.TranslationModalProps{
 		SSEUrl: sseURL.String(),
 	}
@@ -62,13 +64,19 @@ func (client ServerClient) CreateTranslationRoute(w http.ResponseWriter, r *http
 }
 
 func (client ServerClient) TranslationDetailsRoute(w http.ResponseWriter, r *http.Request) {
-	translation, err := client.persistence.GetTranslationByID(r.Form.Get("id"))
+	translationID, err := strconv.ParseInt(r.Form.Get("id"), 10, 64)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	sseURL, _ := client.router.Get("streamTranslation").URL("id", translation.GetID())
+	translation, err := dto.GetTranslationByID(translationID, client.db)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	sseURL, _ := client.router.Get("streamTranslation").URL("id", strconv.FormatInt(translation.ID, 10))
 	props := template.TranslationModalProps{
 		SSEUrl: sseURL.String(),
 	}
@@ -77,16 +85,28 @@ func (client ServerClient) TranslationDetailsRoute(w http.ResponseWriter, r *htt
 }
 
 func (client ServerClient) DeleteTranslationRoute(w http.ResponseWriter, r *http.Request) {
-	if err := client.persistence.DeleteTranslationByID(r.Form.Get("id")); err != nil {
+	translationID, err := strconv.ParseInt(r.Form.Get("id"), 10, 64)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error deleting translation: %v\n", err), 404)
+		return
+	}
+
+	if err := dto.DeleteTranslation(translationID, client.db); err != nil {
 		http.Error(w, fmt.Sprintf("Error deleting translation: %v\n", err), 404)
 		return
 	}
 }
 
 func (client ServerClient) TranslateStreamRoute(w http.ResponseWriter, r *http.Request) {
-	translation, err := client.persistence.GetTranslationByID(r.Form.Get("id"))
+	translationID, err := strconv.ParseInt(r.Form.Get("id"), 10, 64)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Error getting translation: %v\n", err), 404)
+		http.Error(w, fmt.Sprintf("Error parsing translation id: %v\n", err), http.StatusBadRequest)
+		return
+	}
+
+	translation, err := dto.GetTranslationByID(translationID, client.db)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error getting translation: %v\n", err), http.StatusNotFound)
 		return
 	}
 

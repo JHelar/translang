@@ -5,25 +5,25 @@ import (
 	"log"
 	"net/http"
 	"time"
+	"translang/db"
 	"translang/figma"
-	"translang/persistence"
 	"translang/translator"
 
 	"github.com/gorilla/mux"
 )
 
 type ServerClient struct {
-	translator  translator.TranslatorClient
-	persistence persistence.PersistenceClient
-	router      *mux.Router
-	server      *http.Server
+	translator translator.TranslatorClient
+	db         db.DBClient
+	router     *mux.Router
+	server     *http.Server
 }
 
-func NewClient(translator translator.TranslatorClient, persistence persistence.PersistenceClient, figmaClient figma.FigmaClient, baseUrl string) ServerClient {
+func NewClient(translator translator.TranslatorClient, dbClient db.DBClient, figmaClient figma.FigmaClient, baseUrl string) ServerClient {
 	client := ServerClient{
-		translator:  translator,
-		persistence: persistence,
-		router:      mux.NewRouter(),
+		translator: translator,
+		db:         dbClient,
+		router:     mux.NewRouter(),
 	}
 
 	client.router.PathPrefix("/public/").Handler(http.StripPrefix("/public/", http.FileServer(http.Dir("./public"))))

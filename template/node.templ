@@ -2,13 +2,13 @@ package template
 
 import (
 	"fmt"
-	"translang/persistence"
+	"translang/dto"
 )
 
 type NodeModalProps struct {
-	persistence.NodePayload
+	dto.TranslationNode
 	Values []struct {
-		persistence.ValuePayload
+		dto.TranslationNodeValue
 		UpdateValueURL string
 	}
 }
@@ -25,7 +25,7 @@ templ NodeModal(props NodeModalProps) {
 				</form>
 				<div class="mt-8 gap-y-8 flex flex-col">
 					<h2 class="text-xl mb-2">{ props.CopyKey }</h2>
-					<p class="mb-4">{ props.Source }</p>
+					<p class="mb-4">{ props.SourceText }</p>
 					<div class="overflow-x-auto">
 						<table class="table">
 							<thead>
@@ -37,10 +37,10 @@ templ NodeModal(props NodeModalProps) {
 							<tbody>
 								for i, value := range props.Values {
 									<tr>
-										<th class="font-normal w-44">{ value.Language }</th>
+										<th class="font-normal w-44">{ value.CopyLanguage }</th>
 										<th>
 											<form id={ fmt.Sprintf("update-%d", i) } hx-patch={ value.UpdateValueURL } hx-swap="none">
-												<textarea name="text" minlength="1" class="font-normal textarea" placeholder="Enter translation" lang={ value.Language } required>{ value.Text }</textarea>
+												<textarea name="text" minlength="1" class="font-normal textarea" placeholder="Enter translation" lang={ value.CopyLanguage } required>{ value.CopyText }</textarea>
 											</form>
 										</th>
 										<th>

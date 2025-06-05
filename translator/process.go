@@ -1,7 +1,9 @@
 package translator
 
 import (
-	"translang/persistence"
+	"strconv"
+	"translang/db"
+	"translang/dto"
 )
 
 type TranslationValue struct {
@@ -17,41 +19,32 @@ type TranslationResult struct {
 	Values  []TranslationValue `json:"values"`
 }
 
-func nodeToTranslationResult(translation persistence.PersistenceTranslation, node persistence.PersistenceNode) (TranslationResult, error) {
-	payload, err := node.ToPayload()
+func nodeToTranslationResult(translation dto.Translation, node dto.TranslationNode, db db.DBClient) (TranslationResult, error) {
+	values, err := node.Values(&db)
 	if err != nil {
 		return TranslationResult{}, err
 	}
 
 	result := TranslationResult{
-		ID:      node.GetID(),
-		Source:  payload.Source,
-		CopyKey: payload.CopyKey,
+		ID:      strconv.FormatInt(node.ID, 10),
+		Source:  node.SourceText,
+		CopyKey: node.CopyKey,
 	}
 
-	for _, value := range payload.Values {
+	for _, value := range values {
 		result.Values = append(result.Values, TranslationValue{
-			Language: value.Language,
-			Text:     value.Text,
+			Language: value.CopyLanguage,
+			Text:     value.CopyText,
 		})
 	}
 
 	return result, nil
 }
 
-func translationResultToNodePayload(result TranslationResult) persistence.NodePayload {
-	var values []persistence.ValuePayload
-	for _, value := range result.Values {
-		values = append(values, persistence.ValuePayload{
-			Language: value.Language,
-			Text:     value.Text,
-		})
-	}
-
-	return persistence.NodePayload{
-		Source:  result.Source,
-		CopyKey: result.CopyKey,
-		Values:  values,
+func translationResultToNodePayload(result TranslationResult) dto.TranslationNode {
+	return dto.TranslationNode{
+		SourceText: result.Source,
+		CopyKey:    result.CopyKey,
 	}
 }
 
@@ -61,27 +54,24 @@ type ProcessResult struct {
 	Translations    []TranslationResult `json:"translations"`
 }
 
-func (client TranslatorClient) ProcessContextImage(translation persistence.PersistenceTranslation) (<-chan string, <-chan error) {
+func (client TranslatorClient) ProcessContextImage(translation dto.Translation) (<-chan string, <-chan error) {
 	imageUrlChan := make(chan string)
 	errorChan := make(chan error)
 
 	go func() {
-		imageUrl, err := translation.GetContextImageUrl()
-		defer close(imageUrlChan)
-
-		if err == nil {
-			imageUrlChan <- imageUrl
+		if translation.ContextImageUrl.Valid && translation.ContextImageUrl.String != "" {
+			imageUrlChan <- translation.ContextImageUrl.String
 			return
 		}
 
-		imageUrl, err = client.figmaClient.GetImage(translation.GetFigmaSourceUrl())
+		imageUrl, err := client.figmaClient.GetImage(translation.FigmaSourceUrl)
 		if err != nil {
 			errorChan <- err
 			return
 		}
 
 		imageUrlChan <- imageUrl
-		if err := translation.UpdateContextImage(imageUrl); err != nil {
+		if err := translation.UpdateContextImage(imageUrl, &client.db); err != nil {
 			errorChan <- err
 			return
 		}
@@ -90,17 +80,17 @@ func (client TranslatorClient) ProcessContextImage(translation persistence.Persi
 	return imageUrlChan, errorChan
 }
 
-func (client TranslatorClient) ProcessTextTranslations(translation persistence.PersistenceTranslation) (<-chan TranslationResult, <-chan error) {
+func (client TranslatorClient) ProcessTextTranslations(translation dto.Translation) (<-chan TranslationResult, <-chan error) {
 	translationResult := make(chan TranslationResult)
 	errorChan := make(chan error)
 
 	go func() {
-		nodes, err := translation.GetAllNodes()
+		nodes, err := translation.Nodes(&client.db)
 		defer close(translationResult)
 
 		if err == nil && len(nodes) > 0 {
 			for _, node := range nodes {
-				result, err := nodeToTranslationResult(translation, node)
+				result, err := nodeToTranslationResult(translation, node, client.db)
 				if err != nil {
 					errorChan <- err
 					return
@@ -110,7 +100,7 @@ func (client TranslatorClient) ProcessTextTranslations(translation persistence.P
 			return
 		}
 
-		node, err := client.figmaClient.GetFileNodes(translation.GetFigmaSourceUrl())
+		node, err := client.figmaClient.GetFileNodes(translation.FigmaSourceUrl)
 		if err != nil {
 			errorChan <- err
 			return
@@ -118,53 +108,36 @@ func (client TranslatorClient) ProcessTextTranslations(translation persistence.P
 
 		textNodes := node.FindAllNodesOfType("TEXT")
 		for _, textNode := range textNodes {
-			node, err := client.persistence.GetNodeFromSourceText(textNode.Characters)
-			var payload persistence.NodePayload
+			node, err := dto.GetTranslationNodeBySourceText(textNode.Characters, &client.db)
 			if err == nil {
-				payload, _ = node.ToPayload()
-			} else {
 				translation := client.openaiClient.Translate(textNode.Characters)
-				payload.Source = translation.Source
-				payload.CopyKey = translation.CopyKey
-				payload.Values = []persistence.ValuePayload{
-					{
-						Language: "sv",
-						Text:     translation.Swedish,
-					},
-					{
-						Language: "en",
-						Text:     translation.English,
-					},
-					{
-						Language: "fi",
-						Text:     translation.Finnish,
-					},
-				}
+				node.SourceText = translation.Source
+				node.CopyKey = translation.CopyKey
 			}
 
-			node, err = translation.UpsertNode(textNode.ID, payload)
+			node, err = translation.UpsertNode(textNode.ID, node.SourceText, node.CopyKey, &client.db)
 			if err != nil {
 				errorChan <- err
 				return
 			}
 
-			nodePayload, err := node.ToPayload()
+			values, err := node.Values(&client.db)
 			if err != nil {
 				errorChan <- err
 				return
 			}
 
 			result := TranslationResult{
-				ID:      node.GetID(),
+				ID:      strconv.FormatInt(node.ID, 10),
 				NodeId:  textNode.ID,
-				Source:  nodePayload.Source,
-				CopyKey: nodePayload.CopyKey,
+				Source:  node.SourceText,
+				CopyKey: node.CopyKey,
 			}
 
-			for _, value := range nodePayload.Values {
+			for _, value := range values {
 				result.Values = append(result.Values, TranslationValue{
-					Language: value.Language,
-					Text:     value.Text,
+					Language: value.CopyLanguage,
+					Text:     value.CopyText,
 				})
 			}
 			translationResult <- result
@@ -175,7 +148,7 @@ func (client TranslatorClient) ProcessTextTranslations(translation persistence.P
 }
 
 func (client TranslatorClient) Process(figmaUrl string) (ProcessResult, error) {
-	translation, err := client.persistence.UpsertTranslation(figmaUrl)
+	translation, err := dto.UpsertTranslation(figmaUrl, client.db)
 	if err != nil {
 		return ProcessResult{}, err
 	}

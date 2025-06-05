@@ -1,24 +1,24 @@
 package translator
 
 import (
+	"translang/db"
 	"translang/figma"
 	"translang/openai"
-	"translang/persistence"
 )
 
 type TranslatorClient struct {
 	figmaClient  figma.FigmaClient
 	openaiClient openai.OpenaiClient
-	persistence  persistence.PersistenceClient
+	db           db.DBClient
 }
 
-func NewClient(figmaPAT string, openaiAPIKey string, persistence persistence.PersistenceClient) TranslatorClient {
+func NewClient(figmaPAT string, openaiAPIKey string, dbClient db.DBClient) TranslatorClient {
 	figmaClient := figma.NewClient(figmaPAT)
 	openaiClient := openai.NewClient(openaiAPIKey)
 
 	return TranslatorClient{
 		figmaClient:  figmaClient,
 		openaiClient: openaiClient,
-		persistence:  persistence,
+		db:           dbClient,
 	}
 }

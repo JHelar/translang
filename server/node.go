@@ -3,12 +3,13 @@ package server
 import (
 	"fmt"
 	"net/http"
-	"translang/persistence"
+	"strconv"
+	"translang/dto"
 	"translang/template"
 )
 
 func (client ServerClient) NodesRoute(w http.ResponseWriter, r *http.Request) {
-	nodes, err := client.persistence.GetAllNodes()
+	nodes, err := dto.GetAllNodes(&client.db)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
@@ -16,20 +17,15 @@ func (client ServerClient) NodesRoute(w http.ResponseWriter, r *http.Request) {
 
 	props := template.NodesProp{}
 	for _, node := range nodes {
-		payload, err := node.ToPayload()
-		if err != nil {
-			http.Error(w, err.Error(), 500)
-			return
-		}
-		detailsUrl, err := client.router.Get("getNode").URL("id", node.GetID())
+		detailsUrl, err := client.router.Get("getNode").URL("id", strconv.FormatInt(node.ID, 10))
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
 		}
 
 		props.Nodes = append(props.Nodes, template.NodeRowProp{
-			SourceText: payload.Source,
-			CopyKey:    payload.CopyKey,
+			SourceText: node.SourceText,
+			CopyKey:    node.CopyKey,
 			DetailsUrl: detailsUrl.String(),
 		})
 	}
@@ -37,34 +33,44 @@ func (client ServerClient) NodesRoute(w http.ResponseWriter, r *http.Request) {
 }
 
 func (client ServerClient) NodeDetailsRoute(w http.ResponseWriter, r *http.Request) {
-	node, err := client.persistence.GetNodeByID(r.Form.Get("id"))
+	nodeID, err := strconv.ParseInt(r.Form.Get("id"), 10, 64)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	payload, err := node.ToPayload()
+	node, err := dto.GetNodeByID(nodeID, &client.db)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	values, err := node.Values(&client.db)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	props := template.NodeModalProps{
-		NodePayload: payload,
+		TranslationNode: node,
+		Values: []struct {
+			dto.TranslationNodeValue
+			UpdateValueURL string
+		}{},
 	}
 
-	for _, value := range payload.Values {
-		updateValueURL, err := client.router.Get("updateNodeValue").URL("id", node.GetID(), "language", value.Language)
+	for _, value := range values {
+		updateValueURL, err := client.router.Get("updateNodeValue").URL("id", strconv.FormatInt(node.ID, 10), "language", value.CopyLanguage)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		props.Values = append(props.Values, struct {
-			persistence.ValuePayload
+			dto.TranslationNodeValue
 			UpdateValueURL string
 		}{
-			ValuePayload:   value,
-			UpdateValueURL: updateValueURL.String(),
+			TranslationNodeValue: value,
+			UpdateValueURL:       updateValueURL.String(),
 		})
 	}
 
@@ -72,16 +78,19 @@ func (client ServerClient) NodeDetailsRoute(w http.ResponseWriter, r *http.Reque
 }
 
 func (client ServerClient) UpdateTranslationValue(w http.ResponseWriter, r *http.Request) {
-	node, err := client.persistence.GetNodeByID(r.Form.Get("id"))
+	nodeID, err := strconv.ParseInt(r.Form.Get("id"), 10, 64)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error getting translation node: %v\n", err), 404)
 		return
 	}
 
-	if _, err := node.UpsertValue(persistence.ValuePayload{
-		Language: r.Form.Get("language"),
-		Text:     r.Form.Get("text"),
-	}); err != nil {
+	node, err := dto.GetNodeByID(nodeID, &client.db)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error getting translation node: %v\n", err), 404)
+		return
+	}
+
+	if _, err := node.UpsertValue(r.Form.Get("language"), r.Form.Get("text"), &client.db); err != nil {
 		http.Error(w, fmt.Sprintf("Error updating node value: %v\n", err), 500)
 		return
 	}
