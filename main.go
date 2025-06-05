@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"translang/auth"
 	"translang/figma"
 	"translang/persistence/db"
 	"translang/server"
@@ -59,7 +60,13 @@ func getEnvVariables() EnvVariables {
 
 func main() {
 	env := getEnvVariables()
+
+	authProvider := auth.NewAuthProvider()
 	dbPersistenceClient := db.NewClient()
+
+	passwordProvider := auth.NewPasswordProvider(&dbPersistenceClient.DBClient)
+	authProvider.AddProvider(passwordProvider)
+
 	figmaClient := figma.NewClient(env.FIGMA_PAT)
 	translator := translator.NewClient(env.FIGMA_PAT, env.OPENAI_API_KEY, dbPersistenceClient)
 	serverClient := server.NewClient(translator, dbPersistenceClient, figmaClient, env.BASE_URL)

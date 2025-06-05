@@ -1,3 +1,12 @@
+create table if not exists "user" (
+    [id] integer not null primary key autoincrement
+);
+create table if not exists "password_provider" (
+    [user_id] integer not null unique references [user]([id]) on delete cascade,
+    [email] text not null unique,
+    [password_hash] text not null,
+    primary key (user_id)
+);
 create table if not exists "translation" (
     [id] integer not null primary key autoincrement,
     [figma_source_url] text not null unique,
