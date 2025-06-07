@@ -5,12 +5,18 @@ import (
 )
 
 type User struct {
+	ID    int64
+	Email string
 }
 
 type ProviderKind int
 
 const (
 	KindPasswordProvider ProviderKind = iota
+)
+
+var (
+	ErrInvalidUserCredentials error = fmt.Errorf("invalid user credentials")
 )
 
 type ProviderPayload struct {
@@ -56,7 +62,7 @@ func NewPasswordUserPayload(email string, password string) *ProviderPayload {
 }
 
 type Provider interface {
-	signIn(payload ProviderPayload) (User, error)
+	signIn(payload *ProviderPayload) (User, error)
 	getKind() ProviderKind
 }
 
@@ -74,7 +80,7 @@ func (auth AuthProvider) AddProvider(provider Provider) {
 	auth.providers[provider.getKind()] = provider
 }
 
-func (auth AuthProvider) SignIn(payload ProviderPayload) (User, error) {
+func (auth AuthProvider) SignIn(payload *ProviderPayload) (User, error) {
 	provider := auth.providers[payload.Kind]
 	if provider == nil {
 		return User{}, fmt.Errorf("missing provider for kind")

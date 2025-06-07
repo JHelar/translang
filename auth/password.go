@@ -1,8 +1,10 @@
 package auth
 
 import (
-	"fmt"
 	"translang/db"
+	"translang/dto"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type PasswordProvider struct {
@@ -15,12 +17,23 @@ func NewPasswordProvider(db *db.DBClient) PasswordProvider {
 	}
 }
 
-func (provider PasswordProvider) signIn(payload ProviderPayload) (User, error) {
+func (provider PasswordProvider) signIn(payload *ProviderPayload) (User, error) {
 	passwordUserPayload := payload.AsPasswordUserPayload()
 
-	fmt.Printf("Email: %s\nPassword: %s\n", passwordUserPayload.Email, passwordUserPayload.Password)
+	user, err := dto.GetPasswordUserByEmail(passwordUserPayload.Email, provider.db)
+	if err != nil {
+		return User{}, err
+	}
 
-	return User{}, nil
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(passwordUserPayload.Password))
+	if err != nil {
+		return User{}, ErrInvalidUserCredentials
+	}
+
+	return User{
+		ID:    user.ID,
+		Email: user.Email,
+	}, nil
 }
 
 func (provider PasswordProvider) getKind() ProviderKind {

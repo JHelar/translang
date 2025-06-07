@@ -69,7 +69,7 @@ func main() {
 
 	figmaClient := figma.NewClient(env.FIGMA_PAT)
 	translator := translator.NewClient(env.FIGMA_PAT, env.OPENAI_API_KEY, dbClient)
-	serverClient := server.NewClient(translator, dbClient, figmaClient, env.BASE_URL)
+	serverClient := server.NewClient(translator, dbClient, figmaClient, env.BASE_URL, authProvider)
 
 	serverClient.ListenAndServe()
 }

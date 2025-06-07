@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"time"
+	"translang/auth"
 	"translang/db"
 	"translang/figma"
 	"translang/translator"
@@ -15,15 +16,17 @@ import (
 type ServerClient struct {
 	translator translator.TranslatorClient
 	db         db.DBClient
+	auth       auth.AuthProvider
 	router     *mux.Router
 	server     *http.Server
 }
 
-func NewClient(translator translator.TranslatorClient, dbClient db.DBClient, figmaClient figma.FigmaClient, baseUrl string) ServerClient {
+func NewClient(translator translator.TranslatorClient, dbClient db.DBClient, figmaClient figma.FigmaClient, baseUrl string, auth auth.AuthProvider) ServerClient {
 	client := ServerClient{
 		translator: translator,
 		db:         dbClient,
 		router:     mux.NewRouter(),
+		auth:       auth,
 	}
 
 	client.router.PathPrefix("/public/").Handler(http.StripPrefix("/public/", http.FileServer(http.Dir("./public"))))

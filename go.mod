@@ -3,14 +3,18 @@ module translang
 go 1.23.2
 
 require (
+	github.com/jmoiron/sqlx v1.4.0
+	github.com/mattn/go-sqlite3 v1.14.27
+	golang.org/x/crypto v0.32.0
+)
+
+require (
 	github.com/a-h/templ v0.3.865 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/invopop/jsonschema v0.13.0 // indirect
-	github.com/jmoiron/sqlx v1.4.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
-	github.com/mattn/go-sqlite3 v1.14.27 // indirect
 	github.com/openai/openai-go v0.1.0-beta.9 // indirect
 	github.com/tidwall/gjson v1.14.4 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
