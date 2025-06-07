@@ -59,6 +59,8 @@ func (client TranslatorClient) ProcessContextImage(translation dto.Translation) 
 	errorChan := make(chan error)
 
 	go func() {
+		defer close(imageUrlChan)
+
 		if translation.ContextImageUrl.Valid && translation.ContextImageUrl.String != "" {
 			imageUrlChan <- translation.ContextImageUrl.String
 			return
@@ -109,16 +111,27 @@ func (client TranslatorClient) ProcessTextTranslations(translation dto.Translati
 		textNodes := node.FindAllNodesOfType("TEXT")
 		for _, textNode := range textNodes {
 			node, err := dto.GetTranslationNodeBySourceText(textNode.Characters, &client.db)
-			if err == nil {
-				translation := client.openaiClient.Translate(textNode.Characters)
-				node.SourceText = translation.Source
-				node.CopyKey = translation.CopyKey
-			}
 
-			node, err = translation.UpsertNode(textNode.ID, node.SourceText, node.CopyKey, &client.db)
 			if err != nil {
-				errorChan <- err
-				return
+				openaiClientTranslation := client.openaiClient.Translate(textNode.Characters)
+				node, err = translation.UpsertNode(textNode.ID, openaiClientTranslation.Source, openaiClientTranslation.CopyKey, &client.db)
+				if err != nil {
+					errorChan <- err
+					return
+				}
+
+				if _, err = node.UpsertValue("en", openaiClientTranslation.English, &client.db); err != nil {
+					errorChan <- err
+					return
+				}
+				if _, err = node.UpsertValue("sv", openaiClientTranslation.Swedish, &client.db); err != nil {
+					errorChan <- err
+					return
+				}
+				if _, err = node.UpsertValue("fi", openaiClientTranslation.Finnish, &client.db); err != nil {
+					errorChan <- err
+					return
+				}
 			}
 
 			values, err := node.Values(&client.db)

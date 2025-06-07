@@ -26,5 +26,5 @@ func (client ServerClient) SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprintf(w, "Signed in as user: %s", user.ID)
+	fmt.Fprintf(w, "Signed in as user: %d", user.ID)
 }

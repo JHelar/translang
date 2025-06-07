@@ -118,7 +118,7 @@ func (client ServerClient) TranslateStreamRoute(w http.ResponseWriter, r *http.R
 
 	hasSentTranslations := false
 	hasSentImage := false
-	for !hasSentTranslations || !hasSentImage {
+	for !(hasSentTranslations && hasSentImage) {
 		if !hasSentTranslations {
 			select {
 			case translationResult, ok := <-translationChan:
